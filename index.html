@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Fishyyyyyy Timer</title>
+<title>Study Timer</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
 
@@ -320,81 +320,116 @@
 // lap colors — all grey tones, no blue
 const LC = ['#aaa','#888','#ccc','#666','#bbb','#999','#ddd','#777'];
 
-let S = { t:0, run:false, mode:'stopwatch', ls:0, laps:[], pend:null };
-let iv=null, wl=null;
+// S.t         = elapsed seconds (float), updated on play/pause
+// S.startedAt = performance.now() timestamp of when play() was last called (null if paused)
+// S.ls        = elapsed seconds at the point the last lap was saved
+let S = { t:0, run:false, mode:'stopwatch', ls:0, laps:[], pend:null, startedAt:null };
+let iv = null, wl = null;
 
 const pad = n => String(Math.floor(Math.abs(n))).padStart(2,'0');
 const fmt = s => `${pad(s/60)}:${pad(s%60)}`;
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+// Returns the true current elapsed seconds, accounting for time spent in background
+function getCurrentT() {
+  if (!S.run || S.startedAt === null) return S.t;
+  const elapsed = (performance.now() - S.startedAt) / 1000;
+  if (S.mode === 'countdown') return Math.max(0, S.t - elapsed);
+  return S.t + elapsed;
+}
+
 function updClock() {
-  const t = Math.floor(S.t);
-  document.getElementById('seg-m').textContent = pad(t/60);
-  document.getElementById('seg-s').textContent = pad(t%60);
+  const t = Math.floor(getCurrentT());
+  document.getElementById('seg-m').textContent = pad(t / 60);
+  document.getElementById('seg-s').textContent = pad(t % 60);
   document.getElementById('clock').classList.toggle('paused', !S.run);
   const tk = document.getElementById('ticker');
   if (S.run) {
-    const e = S.t - S.ls;
+    const e = getCurrentT() - S.ls;
     tk.innerHTML = `lap ${S.laps.length+1} &nbsp;<span class="t">${fmt(e)}</span>`;
-  } else tk.textContent = '';
+  } else {
+    tk.textContent = '';
+  }
 }
 
 function tick() {
   if (!S.run) return;
-  S.t += S.mode==='countdown' ? -0.5 : 0.5;
-  if (S.t<=0) { S.t=0; pause(); }
+  // Auto-stop countdown when it hits zero
+  if (S.mode === 'countdown' && getCurrentT() <= 0) {
+    // Commit the final value before pausing
+    S.t = 0;
+    S.startedAt = null;
+    pause();
+    return;
+  }
   updClock();
 }
 
 function play() {
-  if (iv) return;
-  S.run=true; iv=setInterval(tick,500);
-  document.getElementById('sbtn').textContent='[ pause ]';
-  document.getElementById('lbtn').disabled=false;
-  reqWL(); updClock();
+  if (S.run) return;
+  S.run = true;
+  S.startedAt = performance.now(); // anchor wall clock
+  iv = setInterval(tick, 250);     // just for display refresh — not for timekeeping
+  document.getElementById('sbtn').textContent = '[ pause ]';
+  document.getElementById('lbtn').disabled = false;
+  reqWL();
+  updClock();
 }
+
 function pause() {
-  S.run=false; clearInterval(iv); iv=null;
-  document.getElementById('sbtn').textContent='[ start ]';
-  relWL(); updClock();
+  if (!S.run && S.startedAt === null) return;
+  S.t = getCurrentT();   // commit true elapsed time before stopping
+  S.startedAt = null;
+  S.run = false;
+  clearInterval(iv); iv = null;
+  document.getElementById('sbtn').textContent = '[ start ]';
+  relWL();
+  updClock();
 }
+
 function toggleTimer() { S.run ? pause() : play(); }
 
 function resetTimer() {
   if (S.laps.length) saveSess();
-  pause(); S.t=0; S.laps=[]; S.ls=0; S.pend=null;
-  document.getElementById('lbtn').disabled=true;
-  document.getElementById('lap-modal').style.display='none';
+  pause();
+  S.t = 0; S.laps = []; S.ls = 0; S.pend = null; S.startedAt = null;
+  document.getElementById('lbtn').disabled = true;
+  document.getElementById('lap-modal').style.display = 'none';
   updClock(); renderLaps();
 }
+
 function setMode(m) {
-  S.mode=m;
-  document.getElementById('btn-sw').classList.toggle('on', m==='stopwatch');
-  document.getElementById('btn-cd').classList.toggle('on', m==='countdown');
+  S.mode = m;
+  document.getElementById('btn-sw').classList.toggle('on', m === 'stopwatch');
+  document.getElementById('btn-cd').classList.toggle('on', m === 'countdown');
   resetTimer();
 }
 
 function triggerLap() {
   if (!S.run) return;
-  const dur = S.t - S.ls;
-  if (dur<1) return;
-  S.pend = { start:S.ls, end:S.t, duration:dur };
+  const now = getCurrentT();
+  const dur = now - S.ls;
+  if (dur < 1) return;
+  S.pend = { start: S.ls, end: now, duration: dur };
   document.getElementById('mdur').textContent = fmt(dur);
   document.getElementById('linput').value = '';
-  document.getElementById('lap-modal').style.display='flex';
-  setTimeout(()=>document.getElementById('linput').focus(), 40);
+  document.getElementById('lap-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('linput').focus(), 40);
 }
+
 function saveLap() {
   const name = document.getElementById('linput').value.trim() || `block ${S.laps.length+1}`;
   S.laps.push({ ...S.pend, name, ci: S.laps.length % LC.length });
-  S.ls = S.pend.end; S.pend=null;
-  document.getElementById('lap-modal').style.display='none';
+  S.ls = S.pend.end; S.pend = null;
+  document.getElementById('lap-modal').style.display = 'none';
   renderLaps();
 }
-function cancelLap() { S.pend=null; document.getElementById('lap-modal').style.display='none'; }
+
+function cancelLap() { S.pend = null; document.getElementById('lap-modal').style.display = 'none'; }
+
 function clearLaps() {
   if (!S.laps.length) return;
-  if (confirm('clear current session?')) { S.laps=[]; S.ls=S.run?S.t:0; renderLaps(); }
+  if (confirm('clear current session?')) { S.laps = []; S.ls = getCurrentT(); renderLaps(); }
 }
 
 function lapHTML(l, i) {
@@ -405,22 +440,23 @@ function lapHTML(l, i) {
     <div class="lrng">${fmt(l.start)} → ${fmt(l.end)}</div>
   </div>`;
 }
+
 function renderLaps() {
   const el = document.getElementById('laps-list');
   if (!S.laps.length) {
-    el.innerHTML='<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';
+    el.innerHTML = '<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';
     return;
   }
   el.innerHTML = S.laps.map(lapHTML).join('');
   el.scrollTop = el.scrollHeight;
 }
 
-function getS() { try { return JSON.parse(localStorage.getItem('study_s')||'[]'); } catch { return []; } }
+function getS() { try { return JSON.parse(localStorage.getItem('study_s') || '[]'); } catch { return []; } }
 function saveSess() {
   if (!S.laps.length) return;
   const all = getS();
-  all.unshift({ date:new Date().toISOString(), laps:S.laps, total:S.laps.reduce((a,l)=>a+l.duration,0) });
-  localStorage.setItem('study_s', JSON.stringify(all.slice(0,50)));
+  all.unshift({ date: new Date().toISOString(), laps: S.laps, total: S.laps.reduce((a,l) => a+l.duration, 0) });
+  localStorage.setItem('study_s', JSON.stringify(all.slice(0, 50)));
   renderSess();
 }
 function clearSessions() {
@@ -430,9 +466,9 @@ function clearSessions() {
 function renderSess() {
   const el = document.getElementById('sess-list');
   const all = getS();
-  if (!all.length) { el.innerHTML='<div class="no-sess">&gt; no saved sessions</div>'; return; }
-  el.innerHTML = all.map((s,i)=>{
-    const d=new Date(s.date);
+  if (!all.length) { el.innerHTML = '<div class="no-sess">&gt; no saved sessions</div>'; return; }
+  el.innerHTML = all.map((s,i) => {
+    const d = new Date(s.date);
     return `<div class="si" onclick="viewSess(${i})">
       <div class="sr1">
         <span class="sdate">${d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</span>
@@ -443,41 +479,54 @@ function renderSess() {
   }).join('');
 }
 function viewSess(i) {
-  const s=getS()[i]; if(!s) return;
-  const d=new Date(s.date);
-  document.getElementById('smtitle').textContent='// '+d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
-  document.getElementById('smsub').textContent=d.toLocaleTimeString()+' · total: '+fmt(s.total);
-  document.getElementById('smlaps').innerHTML=s.laps.map(lapHTML).join('');
-  document.getElementById('sess-modal').style.display='flex';
+  const s = getS()[i]; if (!s) return;
+  const d = new Date(s.date);
+  document.getElementById('smtitle').textContent = '// ' + d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('smsub').textContent = d.toLocaleTimeString() + ' · total: ' + fmt(s.total);
+  document.getElementById('smlaps').innerHTML = s.laps.map(lapHTML).join('');
+  document.getElementById('sess-modal').style.display = 'flex';
 }
-function closeSM() { document.getElementById('sess-modal').style.display='none'; }
+function closeSM() { document.getElementById('sess-modal').style.display = 'none'; }
 
-document.addEventListener('keydown', e=>{
-  if (document.getElementById('lap-modal').style.display!=='none') {
-    if (e.key==='Enter') saveLap();
-    if (e.key==='Escape') cancelLap();
+// When the tab becomes visible again, just re-render — getCurrentT() does the right thing
+document.addEventListener('visibilitychange', () => { if (!document.hidden) updClock(); });
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lap-modal').style.display !== 'none') {
+    if (e.key === 'Enter') saveLap();
+    if (e.key === 'Escape') cancelLap();
     return;
   }
-  if (document.getElementById('sess-modal').style.display!=='none') {
-    if (e.key==='Escape') closeSM(); return;
+  if (document.getElementById('sess-modal').style.display !== 'none') {
+    if (e.key === 'Escape') closeSM(); return;
   }
   switch(e.key) {
     case ' ': e.preventDefault(); toggleTimer(); break;
     case 'l': case 'L': triggerLap(); break;
     case 'r': case 'R': resetTimer(); break;
     case 'f': case 'F': toggleFS(); break;
-    case 'ArrowUp':   e.preventDefault(); S.t=Math.max(0,S.t+60); updClock(); break;
-    case 'ArrowDown': e.preventDefault(); S.t=Math.max(0,S.t-60); updClock(); break;
+    case 'ArrowUp':
+      e.preventDefault();
+      if (S.run) { S.t = getCurrentT(); S.startedAt = performance.now(); }
+      S.t = Math.max(0, S.t + 60);
+      if (S.run) S.startedAt = performance.now();
+      updClock(); break;
+    case 'ArrowDown':
+      e.preventDefault();
+      if (S.run) { S.t = getCurrentT(); S.startedAt = performance.now(); }
+      S.t = Math.max(0, S.t - 60);
+      if (S.run) S.startedAt = performance.now();
+      updClock(); break;
   }
 });
-document.getElementById('linput').addEventListener('keydown', e=>{ if(e.key==='Enter') saveLap(); });
+document.getElementById('linput').addEventListener('keydown', e => { if (e.key === 'Enter') saveLap(); });
 
 function toggleFS() {
   if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(()=>{}); document.body.classList.add('fs'); }
   else { document.exitFullscreen().catch(()=>{}); document.body.classList.remove('fs'); }
 }
-async function reqWL() { try { if ('wakeLock' in navigator) wl=await navigator.wakeLock.request('screen'); } catch {} }
-function relWL() { if (wl) { wl.release(); wl=null; } }
+async function reqWL() { try { if ('wakeLock' in navigator) wl = await navigator.wakeLock.request('screen'); } catch {} }
+function relWL() { if (wl) { wl.release(); wl = null; } }
 
 // ── ASCII fish ────────────────────────────────────────────────────────────────
 const skyFish = [
@@ -492,43 +541,43 @@ const skyFish = [
 ];
 
 const pool=[], entities=[];
-skyFish.forEach((f,i)=>{ for(let w=0;w<f.w;w++) pool.push(i); });
+skyFish.forEach((f,i) => { for (let w=0; w<f.w; w++) pool.push(i); });
 
 function spawnFish() {
-  const el=document.createElement('div');
-  el.className='ascii-entity';
-  const fromRight=Math.random()>.5;
-  const spec=skyFish[pool[Math.floor(Math.random()*pool.length)]];
-  const frames=fromRight?spec.r:spec.l;
-  el.textContent=frames[0];
-  el.style.fontSize=spec.size;
-  el.style.opacity=(Math.random()*.3+0.35).toFixed(2);
-  const y=Math.random()*88+2;
-  const speed=Math.random()*.9+0.25;
-  let x=fromRight?110:-20;
-  el.style.top=y+'vh'; el.style.left=x+'vw';
+  const el = document.createElement('div');
+  el.className = 'ascii-entity';
+  const fromRight = Math.random() > .5;
+  const spec = skyFish[pool[Math.floor(Math.random()*pool.length)]];
+  const frames = fromRight ? spec.r : spec.l;
+  el.textContent = frames[0];
+  el.style.fontSize = spec.size;
+  el.style.opacity = (Math.random()*.3+0.35).toFixed(2);
+  const y = Math.random()*88+2;
+  const speed = Math.random()*.9+0.25;
+  let x = fromRight ? 110 : -20;
+  el.style.top = y+'vh'; el.style.left = x+'vw';
   document.getElementById('ascii-sky').appendChild(el);
-  let fi=0;
-  const wig=setInterval(()=>{
-    if(!el.isConnected){clearInterval(wig);return;}
-    fi=(fi+1)%frames.length; el.textContent=frames[fi];
-  },350+Math.random()*400);
-  return {el,x,y,speed,dir:fromRight?-1:1,wave:Math.random()*Math.PI*2,waveAmp:Math.random()*1.2+0.4,wig};
+  let fi = 0;
+  const wig = setInterval(() => {
+    if (!el.isConnected) { clearInterval(wig); return; }
+    fi = (fi+1) % frames.length; el.textContent = frames[fi];
+  }, 350+Math.random()*400);
+  return { el, x, y, speed, dir: fromRight?-1:1, wave: Math.random()*Math.PI*2, waveAmp: Math.random()*1.2+0.4, wig };
 }
 
-for(let i=0;i<12;i++){ const e=spawnFish(); e.x=Math.random()*100; entities.push(e); }
+for (let i=0; i<12; i++) { const e = spawnFish(); e.x = Math.random()*100; entities.push(e); }
 
-let frame=0;
-(function anim(){
+let frame = 0;
+(function anim() {
   frame++;
-  if(frame%110===0&&Math.random()>.35) entities.push(spawnFish());
-  if(frame%150===0&&Math.random()>.45) entities.push(spawnFish());
-  for(let i=entities.length-1;i>=0;i--){
-    const e=entities[i];
-    e.x+=e.speed*e.dir*0.1;
-    const yo=Math.sin(frame*0.025+e.wave)*e.waveAmp;
-    e.el.style.left=e.x+'vw'; e.el.style.top=(e.y+yo)+'vh';
-    if((e.dir===-1&&e.x<-25)||(e.dir===1&&e.x>118)){clearInterval(e.wig);e.el.remove();entities.splice(i,1);}
+  if (frame%110===0 && Math.random()>.35) entities.push(spawnFish());
+  if (frame%150===0 && Math.random()>.45) entities.push(spawnFish());
+  for (let i=entities.length-1; i>=0; i--) {
+    const e = entities[i];
+    e.x += e.speed * e.dir * 0.1;
+    const yo = Math.sin(frame*0.025+e.wave) * e.waveAmp;
+    e.el.style.left = e.x+'vw'; e.el.style.top = (e.y+yo)+'vh';
+    if ((e.dir===-1 && e.x<-25) || (e.dir===1 && e.x>118)) { clearInterval(e.wig); e.el.remove(); entities.splice(i,1); }
   }
   requestAnimationFrame(anim);
 })();
