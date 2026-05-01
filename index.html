@@ -225,6 +225,198 @@
   body.fs .side { display: none; }
   body.fs .app  { grid-template-columns: 1fr; }
   body.fs .tips { display: none; }
+
+  /* ── Fishbowl popup button ── */
+  .popout-btn {
+    position: fixed;
+    bottom: 1.5rem; right: 1.5rem;
+    z-index: 90;
+    background: none;
+    border: 1px solid var(--b2);
+    color: var(--dim);
+    font-family: 'Courier New', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    padding: 7px 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .popout-btn:hover { border-color: var(--acc); color: var(--acc); }
+
+  /* ── Fishbowl popup ── */
+  #fishbowl-popup {
+    position: fixed;
+    z-index: 9999;
+    /* pinned — not buried under anything */
+    display: none;
+    touch-action: none;
+  }
+
+  .bowl-outer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* SVG circle bowl */
+  .bowl-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  /* Clip circle for contents */
+  .bowl-clip {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    /* opacity transitions on hover handled via JS */
+    transition: background 0.35s;
+  }
+
+  .bowl-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Fish swimming inside the bowl */
+  #bowl-fish-sky {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 50%;
+  }
+  .bowl-fish-entity {
+    position: absolute;
+    color: rgba(180,180,180,0.55);
+    font-family: 'Courier New', monospace;
+    white-space: pre;
+    line-height: 1.2;
+    pointer-events: none;
+    user-select: none;
+    font-size: 0.55rem;
+  }
+
+  .bowl-clock {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: clamp(1.4rem, 5vw, 2.4rem);
+    font-weight: 700;
+    color: #c8c8c8;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    position: relative;
+    z-index: 2;
+    text-align: center;
+  }
+  .bowl-clock .sep { color: #444; animation: blink 1s step-end infinite; }
+  .bowl-clock.paused .sep { animation: none; opacity: 0.2; }
+
+  .bowl-label {
+    font-size: 0.42rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #444;
+    margin-top: 5px;
+    position: relative;
+    z-index: 2;
+    text-align: center;
+  }
+
+  .bowl-ticker {
+    font-family: 'Courier New', monospace;
+    font-size: 0.38rem;
+    letter-spacing: 0.08em;
+    color: #555;
+    margin-top: 3px;
+    position: relative;
+    z-index: 2;
+  }
+  .bowl-ticker .bt { color: #888; }
+
+  .bowl-btns {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+    position: relative;
+    z-index: 2;
+  }
+  .bowl-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #555;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 0.38rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .bowl-btn:hover { border-color: rgba(255,255,255,0.25); color: #999; }
+  .bowl-btn.bp { border-color: rgba(255,255,255,0.18); color: #aaa; }
+
+  /* close X in top-right corner of screen */
+  #bowl-close {
+    position: fixed;
+    top: 1rem; right: 1rem;
+    z-index: 10001;
+    background: rgba(8,8,8,0.9);
+    border: 1px solid var(--b2);
+    color: var(--dim);
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    width: 28px; height: 28px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.12s;
+    line-height: 1;
+  }
+  #bowl-close:hover { border-color: var(--acc); color: var(--acc); }
+
+  /* resize handle ring */
+  .bowl-resize-ring {
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    cursor: nwse-resize;
+    pointer-events: none;
+    border: 2px dashed transparent;
+    transition: border-color 0.2s;
+  }
+  #fishbowl-popup:hover .bowl-resize-ring {
+    border-color: rgba(255,255,255,0.07);
+    pointer-events: all;
+  }
+
+  /* bubble decorations */
+  .bowl-bubbles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(200,200,200,0.08);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) scale(1); opacity: 0.5; }
+    100% { transform: translateY(-120px) scale(1.4); opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -259,6 +451,7 @@
       <span><span class="k">R</span> reset</span>
       <span><span class="k">↑↓</span> ±60s</span>
       <span><span class="k">F</span> fullscreen</span>
+      <span><span class="k">P</span> fishbowl</span>
     </div>
 
   </main>
@@ -279,6 +472,74 @@
       <div class="no-sess">&gt; no saved sessions</div>
     </div>
   </aside>
+</div>
+
+<!-- popout button -->
+<button class="popout-btn" onclick="openBowl()" title="open fishbowl popup (P)">
+  &gt;º)&gt; pop-out
+</button>
+
+<!-- close button (fixed top-right, shown when bowl open) -->
+<div id="bowl-close" onclick="closeBowl()">✕</div>
+
+<!-- Fishbowl popup -->
+<div id="fishbowl-popup">
+  <div class="bowl-outer">
+    <!-- SVG rim/glass -->
+    <svg class="bowl-svg" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="rimGrad" cx="35%" cy="30%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.07)"/>
+          <stop offset="60%" stop-color="rgba(255,255,255,0.01)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0.04)"/>
+        </radialGradient>
+        <radialGradient id="shineGrad" cx="30%" cy="25%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.10)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </radialGradient>
+      </defs>
+      <!-- outer glass rim -->
+      <circle cx="110" cy="110" r="107" fill="none" stroke="rgba(200,200,200,0.13)" stroke-width="1.5"/>
+      <!-- inner glass sheen -->
+      <circle cx="110" cy="110" r="104" fill="url(#rimGrad)"/>
+      <!-- highlight shine -->
+      <ellipse cx="78" cy="68" rx="28" ry="18" fill="url(#shineGrad)" transform="rotate(-25 78 68)"/>
+      <!-- ASCII bowl text around rim (top arc) -->
+      <path id="rimArc" d="M 25,110 A 85,85 0 0,1 195,110" fill="none"/>
+      <text font-family="'Courier New',monospace" font-size="6" fill="rgba(80,80,80,0.6)" letter-spacing="2">
+        <textPath href="#rimArc" startOffset="5%">~·~·~·~·~·~·~·~·~·~·~·~·~·~·~·~·~·~·</textPath>
+      </text>
+      <!-- base stand / pedestal hint -->
+      <ellipse cx="110" cy="214" rx="28" ry="5" fill="rgba(255,255,255,0.03)"/>
+      <line x1="96" y1="212" x2="110" y2="217" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+      <line x1="124" y1="212" x2="110" y2="217" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    </svg>
+
+    <!-- clipped inner contents -->
+    <div class="bowl-clip" id="bowl-clip" style="inset: 3px;">
+      <div class="bowl-inner">
+        <!-- bubbles -->
+        <div class="bowl-bubbles" id="bowl-bubbles"></div>
+        <!-- fish layer -->
+        <div id="bowl-fish-sky"></div>
+
+        <!-- timer display -->
+        <div class="bowl-clock paused" id="bowl-clock">
+          <span id="bseg-m">00</span><span class="sep">:</span><span id="bseg-s">00</span>
+        </div>
+        <div class="bowl-label" id="bowl-label">// stopwatch</div>
+        <div class="bowl-ticker" id="bowl-ticker"></div>
+        <div class="bowl-btns">
+          <button class="bowl-btn" onclick="resetTimer(); return false;">[ rst ]</button>
+          <button class="bowl-btn bp" id="bowl-sbtn" onclick="toggleTimer(); return false;">[ start ]</button>
+          <button class="bowl-btn" id="bowl-lbtn" onclick="triggerLap(); return false;" disabled>[ lap ]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- resize ring (hover to reveal, drag corner) -->
+    <div class="bowl-resize-ring" id="bowl-resize-ring"></div>
+  </div>
 </div>
 
 <!-- lap naming modal -->
@@ -311,9 +572,6 @@
 const LC = ['#aaa','#888','#ccc','#666','#bbb','#999','#ddd','#777'];
 
 // ── State ─────────────────────────────────────────────────────────────────────
-// S.t         = committed elapsed seconds — written only on pause or user adjustment
-// S.startedAt = performance.now() timestamp when play() was last called (null if paused)
-// S.ls        = elapsed seconds at the point the last lap was saved
 let S = { t:0, run:false, mode:'stopwatch', ls:0, laps:[], pend:null, startedAt:null };
 let iv = null, wl = null;
 
@@ -322,7 +580,7 @@ const AUTOSAVE_KEY = 'study_autosave';
 
 function todayStr() {
   const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; // +1: getMonth() is 0-indexed
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
 function autosave() {
@@ -351,7 +609,6 @@ const pad = n => String(Math.floor(Math.abs(n))).padStart(2, '0');
 const fmt = s => `${pad(s / 60)}:${pad(s % 60)}`;
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-// True current elapsed time — derived from wall clock, never drifts
 function getCurrentT() {
   if (!S.run || S.startedAt === null) return S.t;
   const elapsed = (performance.now() - S.startedAt) / 1000;
@@ -361,6 +618,7 @@ function getCurrentT() {
 // ── Display ───────────────────────────────────────────────────────────────────
 function updClock() {
   const t = Math.floor(getCurrentT());
+  // main clock
   document.getElementById('seg-m').textContent = pad(t / 60);
   document.getElementById('seg-s').textContent = pad(t % 60);
   document.getElementById('clock').classList.toggle('paused', !S.run);
@@ -371,9 +629,35 @@ function updClock() {
   } else {
     tk.textContent = '';
   }
+  // bowl clock (always synced)
+  updBowlClock();
 }
 
-// tick() is display-only — never writes S.t
+function updBowlClock() {
+  const t = Math.floor(getCurrentT());
+  const bm = document.getElementById('bseg-m');
+  const bs = document.getElementById('bseg-s');
+  if (bm) bm.textContent = pad(t / 60);
+  if (bs) bs.textContent = pad(t % 60);
+  const bc = document.getElementById('bowl-clock');
+  if (bc) bc.classList.toggle('paused', !S.run);
+  const bl = document.getElementById('bowl-label');
+  if (bl) bl.textContent = `// ${S.mode}`;
+  const btk = document.getElementById('bowl-ticker');
+  if (btk) {
+    if (S.run) {
+      const e = getCurrentT() - S.ls;
+      btk.innerHTML = `lap ${S.laps.length + 1} <span class="bt">${fmt(e)}</span>`;
+    } else {
+      btk.textContent = '';
+    }
+  }
+  const bsBtn = document.getElementById('bowl-sbtn');
+  if (bsBtn) bsBtn.textContent = S.run ? '[ pause ]' : '[ start ]';
+  const blBtn = document.getElementById('bowl-lbtn');
+  if (blBtn) blBtn.disabled = !S.run;
+}
+
 function tick() {
   if (!S.run) return;
   if (S.mode === 'countdown' && getCurrentT() <= 0) {
@@ -388,8 +672,8 @@ function tick() {
 function play() {
   if (S.run) return;
   S.run = true;
-  S.startedAt = performance.now(); // anchor wall clock
-  iv = setInterval(tick, 250);     // display refresh only — not for timekeeping
+  S.startedAt = performance.now();
+  iv = setInterval(tick, 250);
   document.getElementById('sbtn').textContent = '[ pause ]';
   document.getElementById('lbtn').disabled = false;
   reqWL(); updClock();
@@ -397,7 +681,7 @@ function play() {
 
 function pause() {
   if (!S.run && S.startedAt === null) return;
-  S.t = getCurrentT(); // commit true elapsed time before stopping
+  S.t = getCurrentT();
   S.startedAt = null;
   S.run = false;
   clearInterval(iv); iv = null;
@@ -533,6 +817,7 @@ document.addEventListener('keydown', e => {
     case 'l': case 'L': triggerLap(); break;
     case 'r': case 'R': resetTimer(); break;
     case 'f': case 'F': toggleFS(); break;
+    case 'p': case 'P': bowlVisible ? closeBowl() : openBowl(); break;
     case 'ArrowUp':
       e.preventDefault();
       if (S.run) { S.t = getCurrentT(); S.startedAt = performance.now(); }
@@ -558,7 +843,7 @@ function toggleFS() {
 async function reqWL() { try { if ('wakeLock' in navigator) wl = await navigator.wakeLock.request('screen'); } catch {} }
 function relWL() { if (wl) { wl.release(); wl = null; } }
 
-// ── ASCII fish ────────────────────────────────────────────────────────────────
+// ── ASCII fish (background) ───────────────────────────────────────────────────
 const skyFish = [
   { l:[`><(((º>`,`><((( >`], r:[`<º)))><`,`< )))><`], size:'1rem',   w:4 },
   { l:[`>°)))><`,`>°)))-`], r:[`<(((°<`,`-(((°<`],   size:'0.95rem', w:3 },
@@ -611,6 +896,237 @@ let frame = 0;
   }
   requestAnimationFrame(anim);
 })();
+
+// ── Bowl fish (unique designs for the popup) ──────────────────────────────────
+// Different variety set from main background
+const bowlFishVariants = [
+  { l:[`~°>`,`~º>`], r:[`<°~`,`<º~`] },
+  { l:[`><>`,`>(>`], r:[`<><`,`<)>`] },
+  { l:[`-°))>`,`-º))>`], r:[`<((<`,`<((º-`] },
+  { l:[`*><*`,`*>(*`], r:[`*<>*`,`*)<*`] },
+  { l:[`ø>>`,`ø->`], r:[`<<ø`,`<-ø`] },
+  { l:[`·:·>`,`·:·-`], r:[`<·:·`,`-·:·`] },
+  { l:[`|º>|`,`|°>|`], r:[`|<º|`,`|<°|`] },
+  { l:[`»°>`,`»º>`], r:[`<°«`,`<º«`] },
+  { l:[`~·(>`,`~·[>`], r:[`<)·~`,`<]·~`] },
+  { l:[`O><`,`O-<`], r:[`><O`,`>-O`] },
+];
+
+const bowlEntities = [];
+let bowlFrame = 0;
+let bowlAnimId = null;
+
+function spawnBowlFish() {
+  const container = document.getElementById('bowl-fish-sky');
+  if (!container) return null;
+  const popup = document.getElementById('fishbowl-popup');
+  const size = parseInt(popup.style.width) || 220;
+  const el = document.createElement('div');
+  el.className = 'bowl-fish-entity';
+  const fromRight = Math.random() > .5;
+  const spec = bowlFishVariants[Math.floor(Math.random() * bowlFishVariants.length)];
+  const frames = fromRight ? spec.r : spec.l;
+  el.textContent = frames[0];
+  // position within the circular bowl — keep vertically centered-ish area
+  const yPct = Math.random() * 60 + 20; // 20%-80% vertical
+  const speed = Math.random() * 0.5 + 0.15;
+  let xPct = fromRight ? 105 : -15;
+  el.style.top = yPct + '%';
+  el.style.left = xPct + '%';
+  el.style.fontSize = `${Math.random() * 0.12 + 0.32}rem`;
+  el.style.opacity = (Math.random() * 0.3 + 0.25).toFixed(2);
+  container.appendChild(el);
+  let fi = 0;
+  const wig = setInterval(() => {
+    if (!el.isConnected) { clearInterval(wig); return; }
+    fi = (fi + 1) % frames.length;
+    el.textContent = frames[fi];
+  }, 400 + Math.random() * 500);
+  return { el, xPct, yPct, speed, dir: fromRight ? -1 : 1, wave: Math.random() * Math.PI * 2, waveAmp: Math.random() * 1.5 + 0.5, wig };
+}
+
+function startBowlAnim() {
+  if (bowlAnimId) return;
+  // seed a few fish immediately
+  for (let i = 0; i < 4; i++) {
+    const e = spawnBowlFish();
+    if (e) { e.xPct = Math.random() * 80 + 10; bowlEntities.push(e); }
+  }
+  function animBowl() {
+    bowlFrame++;
+    if (bowlFrame % 120 === 0 && Math.random() > 0.4) {
+      const e = spawnBowlFish(); if (e) bowlEntities.push(e);
+    }
+    for (let i = bowlEntities.length - 1; i >= 0; i--) {
+      const e = bowlEntities[i];
+      if (!e || !e.el.isConnected) { bowlEntities.splice(i, 1); continue; }
+      e.xPct += e.speed * e.dir * 0.08;
+      const yo = Math.sin(bowlFrame * 0.03 + e.wave) * e.waveAmp;
+      e.el.style.left = e.xPct + '%';
+      e.el.style.top = (e.yPct + yo) + '%';
+      if ((e.dir === -1 && e.xPct < -20) || (e.dir === 1 && e.xPct > 110)) {
+        clearInterval(e.wig); e.el.remove(); bowlEntities.splice(i, 1);
+      }
+    }
+    bowlAnimId = requestAnimationFrame(animBowl);
+  }
+  bowlAnimId = requestAnimationFrame(animBowl);
+}
+
+function stopBowlAnim() {
+  if (bowlAnimId) { cancelAnimationFrame(bowlAnimId); bowlAnimId = null; }
+  bowlEntities.forEach(e => { if(e){ clearInterval(e.wig); e.el && e.el.remove(); } });
+  bowlEntities.length = 0;
+}
+
+// ── Bowl bubbles ──────────────────────────────────────────────────────────────
+function spawnBubbles() {
+  const container = document.getElementById('bowl-bubbles');
+  if (!container) return;
+  const sizes = [3, 4, 5, 3, 6, 4];
+  sizes.forEach((s, i) => {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    b.style.width = s + 'px';
+    b.style.height = s + 'px';
+    b.style.left = (20 + Math.random() * 60) + '%';
+    b.style.bottom = (5 + Math.random() * 20) + '%';
+    b.style.animationDuration = (4 + Math.random() * 4) + 's';
+    b.style.animationDelay = (i * 1.1 + Math.random() * 2) + 's';
+    container.appendChild(b);
+  });
+}
+
+// ── Fishbowl popup logic ──────────────────────────────────────────────────────
+let bowlVisible = false;
+let bowlSize = 220;
+let bowlX = null, bowlY = null;
+
+function openBowl() {
+  const popup = document.getElementById('fishbowl-popup');
+  const closeBtn = document.getElementById('bowl-close');
+
+  if (bowlX === null) {
+    bowlX = window.innerWidth - bowlSize - 24;
+    bowlY = window.innerHeight - bowlSize - 24;
+  }
+
+  popup.style.display = 'block';
+  popup.style.width = bowlSize + 'px';
+  popup.style.height = bowlSize + 'px';
+  popup.style.left = bowlX + 'px';
+  popup.style.top = bowlY + 'px';
+  closeBtn.style.display = 'flex';
+  bowlVisible = true;
+
+  // opacity: fully opaque initially
+  applyBowlOpacity(true);
+  spawnBubbles();
+  startBowlAnim();
+  updBowlClock();
+  initBowlDrag();
+  initBowlResize();
+  initBowlHoverOpacity();
+}
+
+function closeBowl() {
+  const popup = document.getElementById('fishbowl-popup');
+  const closeBtn = document.getElementById('bowl-close');
+  popup.style.display = 'none';
+  closeBtn.style.display = 'none';
+  bowlVisible = false;
+  stopBowlAnim();
+  // clear bubbles
+  const bb = document.getElementById('bowl-bubbles');
+  if (bb) bb.innerHTML = '';
+}
+
+function applyBowlOpacity(hovered) {
+  const clip = document.getElementById('bowl-clip');
+  const popup = document.getElementById('fishbowl-popup');
+  if (!clip || !popup) return;
+  if (hovered) {
+    clip.style.background = 'rgba(8,8,8,0.92)';
+    popup.style.opacity = '1';
+  } else {
+    clip.style.background = 'rgba(8,8,8,0.60)';
+    popup.style.opacity = '0.72';
+  }
+}
+
+function initBowlHoverOpacity() {
+  const popup = document.getElementById('fishbowl-popup');
+  popup.addEventListener('mouseenter', () => applyBowlOpacity(true));
+  popup.addEventListener('mouseleave', () => applyBowlOpacity(false));
+  // start un-hovered
+  setTimeout(() => applyBowlOpacity(false), 800);
+}
+
+// ── Bowl drag (move by dragging inside circle, not on resize ring) ────────────
+function initBowlDrag() {
+  const popup = document.getElementById('fishbowl-popup');
+  const resizeRing = document.getElementById('bowl-resize-ring');
+  let dragging = false, dx = 0, dy = 0;
+
+  popup.addEventListener('mousedown', e => {
+    // don't drag if clicking on bowl buttons or resize ring
+    if (e.target.closest('.bowl-btn') || e.target === resizeRing) return;
+    dragging = true;
+    dx = e.clientX - popup.getBoundingClientRect().left;
+    dy = e.clientY - popup.getBoundingClientRect().top;
+    popup.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    bowlX = e.clientX - dx;
+    bowlY = e.clientY - dy;
+    // clamp within window
+    bowlX = Math.max(0, Math.min(window.innerWidth - bowlSize, bowlX));
+    bowlY = Math.max(0, Math.min(window.innerHeight - bowlSize, bowlY));
+    popup.style.left = bowlX + 'px';
+    popup.style.top = bowlY + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (dragging) { dragging = false; popup.style.cursor = ''; }
+  });
+}
+
+// ── Bowl resize (drag ring edge) ──────────────────────────────────────────────
+function initBowlResize() {
+  const popup = document.getElementById('fishbowl-popup');
+  const ring = document.getElementById('bowl-resize-ring');
+  let resizing = false, startX, startY, startSize;
+
+  ring.addEventListener('mousedown', e => {
+    resizing = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startSize = bowlSize;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!resizing) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    const delta = Math.max(dx, dy);
+    bowlSize = Math.max(140, Math.min(420, startSize + delta));
+    popup.style.width = bowlSize + 'px';
+    popup.style.height = bowlSize + 'px';
+    // update font size for clock
+    const bc = document.getElementById('bowl-clock');
+    if (bc) {
+      const fs = Math.max(1, Math.min(2.6, bowlSize / 100));
+      bc.style.fontSize = fs + 'rem';
+    }
+  });
+
+  document.addEventListener('mouseup', () => { resizing = false; });
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg) {
