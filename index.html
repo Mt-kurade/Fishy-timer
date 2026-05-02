@@ -112,6 +112,14 @@
   .btn.lap-b:disabled { opacity: 0.18; cursor: not-allowed; }
   .btn.red:hover { border-color: var(--red); color: var(--red); }
 
+  .btn.popout {
+    border-color: var(--b2); color: var(--acc2);
+    font-family: 'Courier New', monospace;
+    font-size: 0.6rem;
+  }
+  .btn.popout:hover { border-color: var(--acc); color: var(--text); }
+  .btn.popout.active { border-color: var(--acc); color: var(--acc); }
+
   .tips {
     display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
     font-size: 0.56rem; color: var(--dim2); letter-spacing: 0.08em; text-transform: uppercase;
@@ -253,12 +261,19 @@
       <button class="btn lap-b" id="lbtn" onclick="triggerLap()" disabled>[ lap ]</button>
     </div>
 
+    <div class="controls" style="margin-top:-0.5rem;">
+      <button class="btn popout" id="popout-btn" onclick="toggleBowl()">
+        &gt;º)&gt; pop-out fishbowl
+      </button>
+    </div>
+
     <div class="tips">
       <span><span class="k">space</span> play/pause</span>
       <span><span class="k">L</span> lap</span>
       <span><span class="k">R</span> reset</span>
       <span><span class="k">↑↓</span> ±60s</span>
       <span><span class="k">F</span> fullscreen</span>
+      <span><span class="k">P</span> pop-out</span>
     </div>
 
   </main>
@@ -307,24 +322,64 @@
 </div>
 
 <script>
-// lap colors — all grey tones, no blue
 const LC = ['#aaa','#888','#ccc','#666','#bbb','#999','#ddd','#777'];
 
-// ── State ─────────────────────────────────────────────────────────────────────
-// S.t         = committed elapsed seconds — written only on pause or user adjustment
-// S.startedAt = performance.now() timestamp when play() was last called (null if paused)
-// S.ls        = elapsed seconds at the point the last lap was saved
 let S = { t:0, run:false, mode:'stopwatch', ls:0, laps:[], pend:null, startedAt:null };
 let iv = null, wl = null;
+let bowlWin = null;
 
-// ── Autosave ──────────────────────────────────────────────────────────────────
-const AUTOSAVE_KEY = 'study_autosave';
+const BOWL_STATE_KEY = 'fishbowl_state';
+const AUTOSAVE_KEY   = 'study_autosave';
 
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; // +1: getMonth() is 0-indexed
+// ── Bowl state sync ───────────────────────────────────────────────────────────
+function pushBowlState() {
+  try {
+    localStorage.setItem(BOWL_STATE_KEY, JSON.stringify({
+      t: S.t,
+      run: S.run,
+      mode: S.mode,
+      ls: S.ls,
+      laps: S.laps,
+      startWall: (S.run && S.startedAt !== null)
+        ? Date.now() - (performance.now() - S.startedAt)
+        : null
+    }));
+  } catch {}
 }
 
+function pullBowlState() {
+  try {
+    const raw = localStorage.getItem(BOWL_STATE_KEY);
+    if (!raw) return;
+    const st = JSON.parse(raw);
+    const tDiff = Math.abs(st.t - getCurrentT());
+    const runChanged  = st.run !== S.run;
+    const lapsChanged = st.laps && st.laps.length !== S.laps.length;
+    if (!tDiff && !runChanged && !lapsChanged) return;
+    if (st.run && !S.run) {
+      S.t = st.t;
+      S.startedAt = performance.now() - (Date.now() - st.startWall);
+      S.run = true;
+      iv = setInterval(tick, 250);
+      document.getElementById('sbtn').textContent = '[ pause ]';
+      document.getElementById('lbtn').disabled = false;
+    } else if (!st.run && S.run) {
+      clearInterval(iv); iv = null;
+      S.t = st.t; S.run = false; S.startedAt = null;
+      document.getElementById('sbtn').textContent = '[ start ]';
+      document.getElementById('lbtn').disabled = true;
+      if (st.t === 0) { S.laps = []; S.ls = 0; renderLaps(); }
+    }
+    if (lapsChanged) { S.laps = st.laps; S.ls = st.ls; renderLaps(); }
+    updClock();
+  } catch {}
+}
+
+// ── Autosave ──────────────────────────────────────────────────────────────────
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
 function autosave() {
   if (S.t < 1 && !S.laps.length) return;
   try {
@@ -333,7 +388,6 @@ function autosave() {
     }));
   } catch {}
 }
-
 function loadAutosave() {
   try {
     const raw = localStorage.getItem(AUTOSAVE_KEY);
@@ -343,15 +397,13 @@ function loadAutosave() {
     return saved;
   } catch { return null; }
 }
-
 function clearAutosave() { localStorage.removeItem(AUTOSAVE_KEY); }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const pad = n => String(Math.floor(Math.abs(n))).padStart(2, '0');
-const fmt = s => `${pad(s / 60)}:${pad(s % 60)}`;
+const pad = n => String(Math.floor(Math.abs(n))).padStart(2,'0');
+const fmt = s => `${pad(s/60)}:${pad(s%60)}`;
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-// True current elapsed time — derived from wall clock, never drifts
 function getCurrentT() {
   if (!S.run || S.startedAt === null) return S.t;
   const elapsed = (performance.now() - S.startedAt) / 1000;
@@ -361,74 +413,60 @@ function getCurrentT() {
 // ── Display ───────────────────────────────────────────────────────────────────
 function updClock() {
   const t = Math.floor(getCurrentT());
-  document.getElementById('seg-m').textContent = pad(t / 60);
-  document.getElementById('seg-s').textContent = pad(t % 60);
+  document.getElementById('seg-m').textContent = pad(t/60);
+  document.getElementById('seg-s').textContent = pad(t%60);
   document.getElementById('clock').classList.toggle('paused', !S.run);
   const tk = document.getElementById('ticker');
   if (S.run) {
     const e = getCurrentT() - S.ls;
-    tk.innerHTML = `lap ${S.laps.length + 1} &nbsp;<span class="t">${fmt(e)}</span>`;
-  } else {
-    tk.textContent = '';
-  }
+    tk.innerHTML = `lap ${S.laps.length+1} &nbsp;<span class="t">${fmt(e)}</span>`;
+  } else { tk.textContent = ''; }
 }
 
-// tick() is display-only — never writes S.t
 function tick() {
   if (!S.run) return;
-  if (S.mode === 'countdown' && getCurrentT() <= 0) {
-    S.t = 0; S.startedAt = null;
-    pause(); return;
-  }
+  if (S.mode === 'countdown' && getCurrentT() <= 0) { S.t=0; S.startedAt=null; pause(); return; }
   updClock();
-  if (Math.round(getCurrentT() * 2) % 10 === 0) autosave();
+  pushBowlState();
+  if (Math.round(getCurrentT()*2)%10===0) autosave();
 }
 
 // ── Play / Pause / Reset ──────────────────────────────────────────────────────
 function play() {
   if (S.run) return;
-  S.run = true;
-  S.startedAt = performance.now(); // anchor wall clock
-  iv = setInterval(tick, 250);     // display refresh only — not for timekeeping
+  S.run = true; S.startedAt = performance.now();
+  iv = setInterval(tick, 250);
   document.getElementById('sbtn').textContent = '[ pause ]';
   document.getElementById('lbtn').disabled = false;
-  reqWL(); updClock();
+  reqWL(); updClock(); pushBowlState();
 }
-
 function pause() {
-  if (!S.run && S.startedAt === null) return;
-  S.t = getCurrentT(); // commit true elapsed time before stopping
-  S.startedAt = null;
-  S.run = false;
-  clearInterval(iv); iv = null;
+  if (!S.run && S.startedAt===null) return;
+  S.t = getCurrentT(); S.startedAt=null; S.run=false;
+  clearInterval(iv); iv=null;
   document.getElementById('sbtn').textContent = '[ start ]';
-  relWL(); autosave(); updClock();
+  relWL(); autosave(); updClock(); pushBowlState();
 }
-
 function toggleTimer() { S.run ? pause() : play(); }
-
 function resetTimer() {
   if (S.laps.length) saveSess();
   pause();
-  S.t = 0; S.laps = []; S.ls = 0; S.pend = null; S.startedAt = null;
+  S.t=0; S.laps=[]; S.ls=0; S.pend=null; S.startedAt=null;
   document.getElementById('lbtn').disabled = true;
   document.getElementById('lap-modal').style.display = 'none';
-  clearAutosave();
-  updClock(); renderLaps();
+  clearAutosave(); updClock(); renderLaps(); pushBowlState();
 }
-
 function setMode(m) {
-  S.mode = m;
-  document.getElementById('btn-sw').classList.toggle('on', m === 'stopwatch');
-  document.getElementById('btn-cd').classList.toggle('on', m === 'countdown');
+  S.mode=m;
+  document.getElementById('btn-sw').classList.toggle('on',m==='stopwatch');
+  document.getElementById('btn-cd').classList.toggle('on',m==='countdown');
   resetTimer();
 }
 
 // ── Laps ──────────────────────────────────────────────────────────────────────
 function triggerLap() {
   if (!S.run) return;
-  const now = getCurrentT();
-  const dur = now - S.ls;
+  const now = getCurrentT(); const dur = now - S.ls;
   if (dur < 1) return;
   S.pend = { start: S.ls, end: now, duration: dur };
   document.getElementById('mdur').textContent = fmt(dur);
@@ -436,65 +474,49 @@ function triggerLap() {
   document.getElementById('lap-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('linput').focus(), 40);
 }
-
 function saveLap() {
-  const name = document.getElementById('linput').value.trim() || `block ${S.laps.length + 1}`;
-  S.laps.push({ ...S.pend, name, ci: S.laps.length % LC.length });
-  S.ls = S.pend.end; S.pend = null;
+  const name = document.getElementById('linput').value.trim() || `block ${S.laps.length+1}`;
+  S.laps.push({ ...S.pend, name, ci: S.laps.length%LC.length });
+  S.ls = S.pend.end; S.pend=null;
   document.getElementById('lap-modal').style.display = 'none';
-  autosave(); renderLaps();
+  autosave(); renderLaps(); pushBowlState();
 }
-
-function cancelLap() { S.pend = null; document.getElementById('lap-modal').style.display = 'none'; }
-
+function cancelLap() { S.pend=null; document.getElementById('lap-modal').style.display='none'; }
 function clearLaps() {
   if (!S.laps.length) return;
-  if (confirm('clear current session?')) {
-    S.laps = []; S.ls = getCurrentT(); autosave(); renderLaps();
-  }
+  if (confirm('clear current session?')) { S.laps=[]; S.ls=getCurrentT(); autosave(); renderLaps(); pushBowlState(); }
 }
-
-function lapHTML(l, i) {
-  const c = LC[l.ci];
+function lapHTML(l,i) {
+  const c=LC[l.ci];
   return `<div class="lap-item" style="--lc:${c}">
     <div class="lr1"><span class="ln">${esc(l.name)}</span><span class="lnum">#${i+1}</span></div>
     <div class="ldur">${fmt(l.duration)}</div>
     <div class="lrng">${fmt(l.start)} → ${fmt(l.end)}</div>
   </div>`;
 }
-
 function renderLaps() {
-  const el = document.getElementById('laps-list');
-  if (!S.laps.length) {
-    el.innerHTML = '<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';
-    return;
-  }
-  el.innerHTML = S.laps.map(lapHTML).join('');
-  el.scrollTop = el.scrollHeight;
+  const el=document.getElementById('laps-list');
+  if (!S.laps.length) { el.innerHTML='<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>'; return; }
+  el.innerHTML=S.laps.map(lapHTML).join(''); el.scrollTop=el.scrollHeight;
 }
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
-function getS() { try { return JSON.parse(localStorage.getItem('study_s') || '[]'); } catch { return []; } }
-
+function getS() { try { return JSON.parse(localStorage.getItem('study_s')||'[]'); } catch { return []; } }
 function saveSess() {
   if (!S.laps.length) return;
-  const all = getS();
-  all.unshift({ date: new Date().toISOString(), laps: S.laps, total: S.laps.reduce((a,l) => a+l.duration, 0) });
-  localStorage.setItem('study_s', JSON.stringify(all.slice(0, 50)));
-  renderSess();
+  const all=getS();
+  all.unshift({ date:new Date().toISOString(), laps:S.laps, total:S.laps.reduce((a,l)=>a+l.duration,0) });
+  localStorage.setItem('study_s',JSON.stringify(all.slice(0,50))); renderSess();
 }
-
 function clearSessions() {
   if (!confirm('delete all saved sessions?')) return;
   localStorage.removeItem('study_s'); renderSess();
 }
-
 function renderSess() {
-  const el = document.getElementById('sess-list');
-  const all = getS();
-  if (!all.length) { el.innerHTML = '<div class="no-sess">&gt; no saved sessions</div>'; return; }
-  el.innerHTML = all.map((s,i) => {
-    const d = new Date(s.date);
+  const el=document.getElementById('sess-list'); const all=getS();
+  if (!all.length) { el.innerHTML='<div class="no-sess">&gt; no saved sessions</div>'; return; }
+  el.innerHTML=all.map((s,i)=>{
+    const d=new Date(s.date);
     return `<div class="si" onclick="viewSess(${i})">
       <div class="sr1">
         <span class="sdate">${d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</span>
@@ -504,148 +526,180 @@ function renderSess() {
     </div>`;
   }).join('');
 }
-
 function viewSess(i) {
-  const s = getS()[i]; if (!s) return;
-  const d = new Date(s.date);
-  document.getElementById('smtitle').textContent = '// ' + d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
-  document.getElementById('smsub').textContent = d.toLocaleTimeString() + ' · total: ' + fmt(s.total);
-  document.getElementById('smlaps').innerHTML = s.laps.map(lapHTML).join('');
-  document.getElementById('sess-modal').style.display = 'flex';
+  const s=getS()[i]; if(!s) return;
+  const d=new Date(s.date);
+  document.getElementById('smtitle').textContent='// '+d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('smsub').textContent=d.toLocaleTimeString()+' · total: '+fmt(s.total);
+  document.getElementById('smlaps').innerHTML=s.laps.map(lapHTML).join('');
+  document.getElementById('sess-modal').style.display='flex';
+}
+function closeSM() { document.getElementById('sess-modal').style.display='none'; }
+
+// ── Fishbowl popup window ─────────────────────────────────────────────────────
+// Wide oblate shape (400x340) to match the reference fishbowl image
+const BOWL_W = 400;
+const BOWL_H = 340;
+
+function toggleBowl() {
+  if (bowlWin && !bowlWin.closed) { bowlWin.focus(); return; }
+  openBowl();
 }
 
-function closeSM() { document.getElementById('sess-modal').style.display = 'none'; }
+function openBowl() {
+  pushBowlState();
+  const sw = window.screen.availWidth;
+  const sh = window.screen.availHeight;
+  const left = Math.max(0, sw - BOWL_W - 20);
+  const top  = Math.max(0, sh - BOWL_H - 60);
+
+  bowlWin = window.open(
+    'bowl-popup.html',
+    'FishyBowl',
+    [
+      `width=${BOWL_W}`,
+      `height=${BOWL_H}`,
+      `left=${left}`,
+      `top=${top}`,
+      'resizable=no',
+      'scrollbars=no',
+      'toolbar=no',
+      'menubar=no',
+      'location=no',
+      'status=no'
+    ].join(',')
+  );
+
+  if (!bowlWin) {
+    showToast('> pop-up blocked — allow pop-ups for this site in your browser');
+    return;
+  }
+
+  const btn = document.getElementById('popout-btn');
+  btn.classList.add('active');
+  btn.textContent = '>º)> bowl is open · click to focus';
+
+  const checkClosed = setInterval(() => {
+    if (!bowlWin || bowlWin.closed) {
+      clearInterval(checkClosed);
+      bowlWin = null;
+      btn.classList.remove('active');
+      btn.textContent = '>º)> pop-out fishbowl';
+      pullBowlState(); // sync final state back
+    }
+  }, 500);
+}
+
+// While bowl is open, pull any changes it makes (pause, lap, etc.) every second
+setInterval(() => {
+  if (bowlWin && !bowlWin.closed) pullBowlState();
+}, 1000);
 
 // ── Keyboard ──────────────────────────────────────────────────────────────────
 document.addEventListener('visibilitychange', () => { if (!document.hidden) updClock(); });
-
 document.addEventListener('keydown', e => {
   if (document.getElementById('lap-modal').style.display !== 'none') {
-    if (e.key === 'Enter') saveLap();
-    if (e.key === 'Escape') cancelLap();
+    if (e.key==='Enter') saveLap();
+    if (e.key==='Escape') cancelLap();
     return;
   }
   if (document.getElementById('sess-modal').style.display !== 'none') {
-    if (e.key === 'Escape') closeSM(); return;
+    if (e.key==='Escape') closeSM(); return;
   }
   switch(e.key) {
     case ' ': e.preventDefault(); toggleTimer(); break;
     case 'l': case 'L': triggerLap(); break;
     case 'r': case 'R': resetTimer(); break;
     case 'f': case 'F': toggleFS(); break;
+    case 'p': case 'P': toggleBowl(); break;
     case 'ArrowUp':
       e.preventDefault();
-      if (S.run) { S.t = getCurrentT(); S.startedAt = performance.now(); }
-      S.t = Math.max(0, S.t + 60);
-      if (S.run) S.startedAt = performance.now();
-      updClock(); break;
+      if (S.run) { S.t=getCurrentT(); S.startedAt=performance.now(); }
+      S.t=Math.max(0,S.t+60);
+      if (S.run) S.startedAt=performance.now();
+      updClock(); pushBowlState(); break;
     case 'ArrowDown':
       e.preventDefault();
-      if (S.run) { S.t = getCurrentT(); S.startedAt = performance.now(); }
-      S.t = Math.max(0, S.t - 60);
-      if (S.run) S.startedAt = performance.now();
-      updClock(); break;
+      if (S.run) { S.t=getCurrentT(); S.startedAt=performance.now(); }
+      S.t=Math.max(0,S.t-60);
+      if (S.run) S.startedAt=performance.now();
+      updClock(); pushBowlState(); break;
   }
 });
-
-document.getElementById('linput').addEventListener('keydown', e => { if (e.key === 'Enter') saveLap(); });
+document.getElementById('linput').addEventListener('keydown', e => { if(e.key==='Enter') saveLap(); });
 
 // ── Fullscreen / Wake lock ────────────────────────────────────────────────────
 function toggleFS() {
   if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(()=>{}); document.body.classList.add('fs'); }
   else { document.exitFullscreen().catch(()=>{}); document.body.classList.remove('fs'); }
 }
-async function reqWL() { try { if ('wakeLock' in navigator) wl = await navigator.wakeLock.request('screen'); } catch {} }
-function relWL() { if (wl) { wl.release(); wl = null; } }
+async function reqWL() { try { if('wakeLock' in navigator) wl=await navigator.wakeLock.request('screen'); } catch {} }
+function relWL() { if(wl){wl.release();wl=null;} }
 
-// ── ASCII fish ────────────────────────────────────────────────────────────────
+// ── ASCII fish (background) ───────────────────────────────────────────────────
 const skyFish = [
   { l:[`><(((º>`,`><((( >`], r:[`<º)))><`,`< )))><`], size:'1rem',   w:4 },
   { l:[`>°)))><`,`>°)))-`], r:[`<(((°<`,`-(((°<`],   size:'0.95rem', w:3 },
   { l:[` *-*-*\n* º  *-\n *-*-*`], r:[`  *-*-*\n-*  º *\n  *-*-*`], size:'0.85rem', w:2 },
   { l:[`  º\\/\\/\\/\\--`,`  º/\\/\\/\\--`], r:[`--/\\/\\/\\/º`,`--\\/\\/\\º`], size:'0.85rem', w:2 },
-  { l:[`>·(º>`,`>=(º>`], r:[`<º)·<`,`<º)=<`],         size:'1rem',   w:3 },
-  { l:[` o)>\n o)>  o)>`], r:[`<(o \n<(o  <(o`],       size:'0.85rem', w:2 },
+  { l:[`>·(º>`,`>=(º>`], r:[`<º)·<`,`<º)=<`], size:'1rem', w:3 },
+  { l:[` o)>\n o)>  o)>`], r:[`<(o \n<(o  <(o`], size:'0.85rem', w:2 },
   { l:[`     /\n___/  º )----<\n   \\____/`], r:[`     \\\n>----( º  \\___\n    \\____/`], size:'0.8rem', w:1 },
   { l:[`  ___\n /  \\__\n|  º  ==>`], r:[`    ___\n  __/  \\\n<==  º  |`], size:'0.85rem', w:1 },
 ];
-
-const pool = [], entities = [];
-skyFish.forEach((f,i) => { for (let w=0; w<f.w; w++) pool.push(i); });
-
+const pool=[],entities=[];
+skyFish.forEach((f,i)=>{ for(let w=0;w<f.w;w++) pool.push(i); });
 function spawnFish() {
-  const el = document.createElement('div');
-  el.className = 'ascii-entity';
-  const fromRight = Math.random() > .5;
-  const spec = skyFish[pool[Math.floor(Math.random()*pool.length)]];
-  const frames = fromRight ? spec.r : spec.l;
-  el.textContent = frames[0];
-  el.style.fontSize = spec.size;
-  el.style.opacity = (Math.random()*.3+0.35).toFixed(2);
-  const y = Math.random()*88+2;
-  const speed = Math.random()*.9+0.25;
-  let x = fromRight ? 110 : -20;
-  el.style.top = y+'vh'; el.style.left = x+'vw';
+  const el=document.createElement('div'); el.className='ascii-entity';
+  const fromRight=Math.random()>.5;
+  const spec=skyFish[pool[Math.floor(Math.random()*pool.length)]];
+  const frames=fromRight?spec.r:spec.l;
+  el.textContent=frames[0]; el.style.fontSize=spec.size;
+  el.style.opacity=(Math.random()*.3+0.35).toFixed(2);
+  const y=Math.random()*88+2; const speed=Math.random()*.9+0.25;
+  let x=fromRight?110:-20;
+  el.style.top=y+'vh'; el.style.left=x+'vw';
   document.getElementById('ascii-sky').appendChild(el);
-  let fi = 0;
-  const wig = setInterval(() => {
-    if (!el.isConnected) { clearInterval(wig); return; }
-    fi = (fi+1) % frames.length; el.textContent = frames[fi];
-  }, 350+Math.random()*400);
-  return { el, x, y, speed, dir: fromRight?-1:1, wave: Math.random()*Math.PI*2, waveAmp: Math.random()*1.2+0.4, wig };
+  let fi=0;
+  const wig=setInterval(()=>{ if(!el.isConnected){clearInterval(wig);return;} fi=(fi+1)%frames.length; el.textContent=frames[fi]; },350+Math.random()*400);
+  return { el, x, y, speed, dir:fromRight?-1:1, wave:Math.random()*Math.PI*2, waveAmp:Math.random()*1.2+0.4, wig };
 }
-
-for (let i=0; i<12; i++) { const e = spawnFish(); e.x = Math.random()*100; entities.push(e); }
-
-let frame = 0;
-(function anim() {
+for(let i=0;i<12;i++){ const e=spawnFish(); e.x=Math.random()*100; entities.push(e); }
+let frame=0;
+(function anim(){
   frame++;
-  if (frame%110===0 && Math.random()>.35) entities.push(spawnFish());
-  if (frame%150===0 && Math.random()>.45) entities.push(spawnFish());
-  for (let i=entities.length-1; i>=0; i--) {
-    const e = entities[i];
-    e.x += e.speed * e.dir * 0.1;
-    const yo = Math.sin(frame*0.025+e.wave) * e.waveAmp;
-    e.el.style.left = e.x+'vw'; e.el.style.top = (e.y+yo)+'vh';
-    if ((e.dir===-1 && e.x<-25) || (e.dir===1 && e.x>118)) { clearInterval(e.wig); e.el.remove(); entities.splice(i,1); }
+  if(frame%110===0&&Math.random()>.35) entities.push(spawnFish());
+  if(frame%150===0&&Math.random()>.45) entities.push(spawnFish());
+  for(let i=entities.length-1;i>=0;i--){
+    const e=entities[i];
+    e.x+=e.speed*e.dir*0.1;
+    const yo=Math.sin(frame*0.025+e.wave)*e.waveAmp;
+    e.el.style.left=e.x+'vw'; e.el.style.top=(e.y+yo)+'vh';
+    if((e.dir===-1&&e.x<-25)||(e.dir===1&&e.x>118)){clearInterval(e.wig);e.el.remove();entities.splice(i,1);}
   }
   requestAnimationFrame(anim);
 })();
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg) {
-  let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    t.style.cssText = `position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);color:#ccc;font-family:'Times New Roman',Times,serif;font-size:0.62rem;letter-spacing:0.08em;padding:8px 18px;z-index:200;opacity:0;transition:opacity 0.3s;`;
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => { t.style.opacity = '0'; }, 3500);
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText=`position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);color:#ccc;font-family:'Times New Roman',Times,serif;font-size:0.62rem;letter-spacing:0.08em;padding:8px 18px;z-index:200;opacity:0;transition:opacity 0.3s;`; document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._tid); t._tid=setTimeout(()=>{t.style.opacity='0';},3500);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-window.addEventListener('beforeunload', () => { autosave(); });
-
-(function init() {
-  const saved = loadAutosave();
-  if (saved) {
-    S.t    = saved.t    ?? 0;
-    S.ls   = saved.ls   ?? 0;
-    S.laps = saved.laps ?? [];
-    S.mode = saved.mode ?? 'stopwatch';
-    S.run  = false;
-    document.getElementById('btn-sw').classList.toggle('on', S.mode === 'stopwatch');
-    document.getElementById('btn-cd').classList.toggle('on', S.mode === 'countdown');
-    if (S.t > 0) document.getElementById('lbtn').disabled = false;
-    showToast(saved.wasRunning
-      ? `> session restored (was running at ${fmt(saved.t)}) — press start to continue`
-      : `> session restored at ${fmt(saved.t)}`
-    );
+window.addEventListener('beforeunload',()=>{ autosave(); pushBowlState(); });
+(function init(){
+  const saved=loadAutosave();
+  if(saved){
+    S.t=saved.t??0; S.ls=saved.ls??0; S.laps=saved.laps??[]; S.mode=saved.mode??'stopwatch'; S.run=false;
+    document.getElementById('btn-sw').classList.toggle('on',S.mode==='stopwatch');
+    document.getElementById('btn-cd').classList.toggle('on',S.mode==='countdown');
+    if(S.t>0) document.getElementById('lbtn').disabled=false;
+    showToast(saved.wasRunning ? `> session restored (was running at ${fmt(saved.t)}) — press start to continue` : `> session restored at ${fmt(saved.t)}`);
   }
+  pushBowlState();
   updClock(); renderLaps(); renderSess();
 })();
 </script>
