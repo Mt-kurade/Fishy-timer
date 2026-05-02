@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>fishyyyyyy · timer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+  :root {
+    --bg: #080808; --text: #d0d0d0; --dim: #555; --dim2: #333;
+    --acc: #999; --b1: rgba(255,255,255,0.08); --b2: rgba(255,255,255,0.16);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+
+  /* The fishbowl SVG sits behind everything */
+  #bowl-bg {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Fish swimming layer — clipped to the bowl ellipse shape */
+  #bowl-fish-sky {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    /* clip-path ellipse matches the SVG: cx=200/400=50%, cy=175/320=54.7%, rx=186/400=46.5%, ry=158/320=49.4% */
+    clip-path: ellipse(46.5% 49.4% at 50% 54.7%);
+  }
+  .bf {
+    position: absolute;
+    color: rgba(0,0,0,0.82);
+    font-family: 'Courier New', monospace;
+    white-space: pre;
+    font-size: 0.5rem;
+    line-height: 1.2;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Bubbles */
+  #bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+  .bubble {
+    position: absolute; border-radius: 50%;
+    border: 1px solid rgba(200,200,200,0.12);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) scale(1); opacity: 0.6; }
+    100% { transform: translateY(-90px) scale(1.5); opacity: 0; }
+  }
+
+  /* Timer content */
+  #content {
+    position: fixed; inset: 0; z-index: 3;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+  }
+
+  .clock {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 2.6rem; font-weight: 700;
+    color: #c8c8c8; letter-spacing: -0.02em; line-height: 1;
+    text-align: center;
+  }
+  .clock .sep { color: #3a3a3a; animation: blink 1s step-end infinite; }
+  .clock.paused .sep { animation: none; opacity: 0.18; }
+  @keyframes blink { 50% { opacity: 0.1; } }
+
+  .mode-lbl {
+    font-size: 0.38rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: #383838; font-family: 'Times New Roman', serif;
+  }
+  .lap-tick {
+    font-family: 'Courier New', monospace;
+    font-size: 0.36rem; letter-spacing: 0.07em; color: #444;
+    min-height: 12px;
+  }
+  .lap-tick .t { color: #777; }
+
+  .btns { display: flex; gap: 4px; margin-top: 4px; }
+  .bb {
+    background: none; border: 1px solid rgba(255,255,255,0.08);
+    color: #444; font-family: 'Times New Roman', serif;
+    font-size: 0.34rem; letter-spacing: 0.09em; text-transform: uppercase;
+    padding: 3px 7px; cursor: pointer; transition: all 0.12s;
+  }
+  .bb:hover { border-color: rgba(255,255,255,0.22); color: #999; }
+  .bb.bp { border-color: rgba(255,255,255,0.16); color: #888; }
+  .bb:disabled { opacity: 0.18; cursor: not-allowed; }
+  .bb.red:hover { border-color: #7a2020; color: #b53030; }
+
+  /* Close button — ON the popup itself, top-right */
+  #close-btn {
+    position: fixed; top: 8px; right: 10px; z-index: 10;
+    background: none; border: 1px solid rgba(255,255,255,0.1);
+    color: #444; font-family: 'Courier New', monospace;
+    font-size: 0.55rem; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.12s; border-radius: 0;
+    line-height: 1;
+  }
+  #close-btn:hover { border-color: #7a2020; color: #b53030; }
+
+  /* lap naming */
+  #lap-ovl {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+    z-index: 20; display: none; align-items: center; justify-content: center;
+  }
+  .lm {
+    background: #0a0a0a; border: 1px solid rgba(255,255,255,0.14);
+    padding: 1.2rem 1.4rem; width: 230px;
+  }
+  .lm h3 { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: #bbb; margin-bottom: 0.4rem; }
+  .lm p  { font-size: 0.5rem; color: #444; margin-bottom: 0.8rem; letter-spacing: 0.06em; }
+  .lm p span { color: #888; }
+  .lm input {
+    width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+    color: #ccc; font-family: 'Times New Roman', serif; font-size: 0.55rem;
+    padding: 6px 8px; outline: none; margin-bottom: 0.8rem; letter-spacing: 0.04em;
+  }
+  .lm input:focus { border-color: #666; }
+  .lm input::placeholder { color: #2a2a2a; }
+  .lm-acts { display: flex; gap: 5px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<!-- fishbowl SVG shape — wide oblate globe, open top like reference image -->
+<svg id="bowl-bg" viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <defs>
+    <!-- glass body fill -->
+    <radialGradient id="glassBody" cx="38%" cy="35%" r="65%">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.055)"/>
+      <stop offset="45%"  stop-color="rgba(255,255,255,0.018)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.032)"/>
+    </radialGradient>
+    <!-- left highlight shine -->
+    <radialGradient id="shineL" cx="25%" cy="28%" r="32%">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.09)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    <!-- right lower shine -->
+    <radialGradient id="shineR" cx="72%" cy="68%" r="22%">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.04)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    <!-- rim gradient -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.04)"/>
+      <stop offset="30%"  stop-color="rgba(255,255,255,0.18)"/>
+      <stop offset="55%"  stop-color="rgba(255,255,255,0.22)"/>
+      <stop offset="80%"  stop-color="rgba(255,255,255,0.14)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.03)"/>
+    </linearGradient>
+    <!-- clip to bowl shape -->
+    <clipPath id="bowlClip">
+      <ellipse cx="200" cy="175" rx="186" ry="158"/>
+    </clipPath>
+  </defs>
+
+  <!-- main bowl body -->
+  <ellipse cx="200" cy="175" rx="186" ry="158" fill="url(#glassBody)" stroke="rgba(200,200,200,0.15)" stroke-width="1.2"/>
+
+  <!-- glass shines -->
+  <ellipse cx="200" cy="175" rx="186" ry="158" fill="url(#shineL)" clip-path="url(#bowlClip)"/>
+  <ellipse cx="200" cy="175" rx="186" ry="158" fill="url(#shineR)" clip-path="url(#bowlClip)"/>
+
+  <!-- open rim — the wide elliptical opening at the top, like the reference photo -->
+  <!-- outer rim ring -->
+  <ellipse cx="200" cy="44" rx="136" ry="18" fill="rgba(8,8,8,0.0)" stroke="rgba(200,200,200,0.28)" stroke-width="1.4"/>
+  <!-- rim fill (inside of glass thickness) -->
+  <ellipse cx="200" cy="44" rx="136" ry="18" fill="url(#rimGrad)" opacity="0.7"/>
+  <!-- inner rim shadow -->
+  <ellipse cx="200" cy="47" rx="122" ry="12" fill="rgba(0,0,0,0.22)" stroke="rgba(255,255,255,0.06)" stroke-width="0.6"/>
+
+  <!-- subtle glass thickness lines at rim edges -->
+  <path d="M 64,44 Q 62,46 64,52" stroke="rgba(255,255,255,0.12)" stroke-width="1" fill="none"/>
+  <path d="M 336,44 Q 338,46 336,52" stroke="rgba(255,255,255,0.12)" stroke-width="1" fill="none"/>
+
+  <!-- main highlight streak (left upper) like in real glass -->
+  <ellipse cx="126" cy="105" rx="22" ry="58" fill="rgba(255,255,255,0.032)" transform="rotate(-18 126 105)"/>
+
+  <!-- bottom base flat rim / foot -->
+  <ellipse cx="200" cy="327" rx="88" ry="8" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.07)" stroke-width="0.8"/>
+
+  <!-- faint ASCII water line inside -->
+  <text x="50" y="252" font-family="'Courier New',monospace" font-size="5.5" fill="rgba(80,80,80,0.35)" letter-spacing="2.2">~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~</text>
+  <text x="50" y="262" font-family="'Courier New',monospace" font-size="5" fill="rgba(60,60,60,0.25)" letter-spacing="2.4">·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·</text>
+
+  <!-- outer bowl edge gloss -->
+  <ellipse cx="200" cy="175" rx="186" ry="158" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="0.5"/>
+</svg>
+
+<div id="bowl-fish-sky"></div>
+<div id="bubbles"></div>
+
+<div id="content">
+  <div class="clock paused" id="clock">
+    <span id="sm">00</span><span class="sep">:</span><span id="ss">00</span>
+  </div>
+  <div class="mode-lbl" id="mlbl">// stopwatch</div>
+  <div class="lap-tick" id="ltick"></div>
+  <div class="btns">
+    <button class="bb red" onclick="doReset()">[ rst ]</button>
+    <button class="bb bp" id="sbtn" onclick="doToggle()">[ start ]</button>
+    <button class="bb" id="lbtn" onclick="doLap()" disabled>[ lap ]</button>
+  </div>
+</div>
+
+<button id="close-btn" onclick="window.close()">✕</button>
+
+<!-- lap modal -->
+<div id="lap-ovl">
+  <div class="lm">
+    <h3>// name this block</h3>
+    <p>duration: <span id="ldur">—</span></p>
+    <input type="text" id="linput" placeholder="physics / chapter 5 ..." maxlength="40"/>
+    <div class="lm-acts">
+      <button class="bb" onclick="cancelLap()">[ cancel ]</button>
+      <button class="bb bp" onclick="saveLap()">[ save ]</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Shared state via localStorage ──────────────────────────────────────────────
+const KEY = 'fishbowl_state';
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; }
+}
+function setState(s) {
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+}
+
+const LC = ['#aaa','#888','#ccc','#666','#bbb','#999'];
+const pad = n => String(Math.floor(Math.abs(n))).padStart(2,'0');
+const fmt = s => `${pad(s/60)}:${pad(s%60)}`;
+
+// local display state
+let localT = 0, localRun = false, localMode = 'stopwatch', localLs = 0, localLaps = [];
+let startedAt = null;
+let pend = null;
+let syncIv = null;
+
+function getCurrentT() {
+  if (!localRun || startedAt === null) return localT;
+  const el = (performance.now() - startedAt) / 1000;
+  return localMode === 'countdown' ? Math.max(0, localT - el) : localT + el;
+}
+
+function syncFromParent() {
+  const st = getState();
+  if (!st) return;
+  // if parent changed run state
+  const wasRun = localRun;
+  if (st.run !== localRun || Math.abs(st.t - localT) > 1) {
+    localT = st.t;
+    localRun = st.run;
+    localMode = st.mode || 'stopwatch';
+    localLs = st.ls || 0;
+    localLaps = st.laps || [];
+    if (localRun && !wasRun) {
+      startedAt = performance.now() - (Date.now() - st.startWall);
+    } else if (!localRun) {
+      startedAt = null;
+    }
+  }
+  updDisplay();
+}
+
+function pushToParent() {
+  const t = getCurrentT();
+  setState({
+    t, run: localRun, mode: localMode, ls: localLs, laps: localLaps,
+    startWall: localRun ? Date.now() - (performance.now() - startedAt) : null
+  });
+}
+
+function updDisplay() {
+  const t = Math.floor(getCurrentT());
+  document.getElementById('sm').textContent = pad(t/60);
+  document.getElementById('ss').textContent = pad(t%60);
+  document.getElementById('clock').classList.toggle('paused', !localRun);
+  document.getElementById('mlbl').textContent = `// ${localMode}`;
+  const lt = document.getElementById('ltick');
+  if (localRun) {
+    const e = getCurrentT() - localLs;
+    lt.innerHTML = `lap ${localLaps.length+1} <span class="t">${fmt(e)}</span>`;
+  } else { lt.textContent = ''; }
+  document.getElementById('sbtn').textContent = localRun ? '[ pause ]' : '[ start ]';
+  document.getElementById('lbtn').disabled = !localRun;
+}
+
+function doToggle() {
+  if (localRun) {
+    localT = getCurrentT(); startedAt = null; localRun = false;
+    document.getElementById('sbtn').textContent = '[ start ]';
+    document.getElementById('lbtn').disabled = true;
+  } else {
+    startedAt = performance.now(); localRun = true;
+    document.getElementById('sbtn').textContent = '[ pause ]';
+    document.getElementById('lbtn').disabled = false;
+  }
+  pushToParent(); updDisplay();
+}
+
+function doReset() {
+  localT = 0; localRun = false; startedAt = null; localLs = 0; localLaps = []; pend = null;
+  document.getElementById('sbtn').textContent = '[ start ]';
+  document.getElementById('lbtn').disabled = true;
+  document.getElementById('lap-ovl').style.display = 'none';
+  pushToParent(); updDisplay();
+}
+
+function doLap() {
+  if (!localRun) return;
+  const now = getCurrentT();
+  const dur = now - localLs;
+  if (dur < 1) return;
+  pend = { start: localLs, end: now, duration: dur };
+  document.getElementById('ldur').textContent = fmt(dur);
+  document.getElementById('linput').value = '';
+  document.getElementById('lap-ovl').style.display = 'flex';
+  setTimeout(() => document.getElementById('linput').focus(), 30);
+}
+
+function saveLap() {
+  const name = document.getElementById('linput').value.trim() || `block ${localLaps.length+1}`;
+  localLaps.push({ ...pend, name, ci: localLaps.length % LC.length });
+  localLs = pend.end; pend = null;
+  document.getElementById('lap-ovl').style.display = 'none';
+  pushToParent(); updDisplay();
+}
+
+function cancelLap() { pend = null; document.getElementById('lap-ovl').style.display = 'none'; }
+
+document.getElementById('linput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveLap();
+  if (e.key === 'Escape') cancelLap();
+});
+
+// ── Bowl fish ──────────────────────────────────────────────────────────────────
+const bowlFish = [
+  { l:[`~°>`,`~º>`], r:[`<°~`,`<º~`] },
+  { l:[`><>`,`>(>`], r:[`<><`,`<(>`] },
+  { l:[`-º))>`,`-°))>`], r:[`<((º-`,`<((°-`] },
+  { l:[`ø>>`,`ø->`], r:[`<<ø`,`<-ø`] },
+  { l:[`·:·>`,`~·>`], r:[`<·:·`,`<·~`] },
+  { l:[`»º>`,`»°>`], r:[`<º«`,`<°«`] },
+  { l:[`~·(>`,`~·[>`], r:[`<)·~`,`<]·~`] },
+  { l:[`*><*`,`*>(*`], r:[`*<>*`,`*)<*`] },
+  { l:[`O><`,`O-<`], r:[`><O`,`>-O`] },
+  { l:[`-·-º>`,`--·º>`], r:[`<º-·-`,`<º·--`] },
+];
+
+const bents = [];
+let bframe = 0;
+
+function spawnBF() {
+  const sky = document.getElementById('bowl-fish-sky');
+  const spec = bowlFish[Math.floor(Math.random()*bowlFish.length)];
+  const fr = Math.random()>.5;
+  const frames = fr ? spec.r : spec.l;
+  const el = document.createElement('div');
+  el.className = 'bf';
+  el.textContent = frames[0];
+  el.style.fontSize = `${Math.random()*0.14+0.3}rem`;
+  el.style.opacity = (Math.random()*0.25+0.7).toFixed(2);
+  const yp = Math.random()*55+22; // keep within bowl body area (22%-77%)
+  let xp = fr ? 108 : -12;
+  el.style.top = yp+'%'; el.style.left = xp+'%';
+  sky.appendChild(el);
+  let fi = 0;
+  const wig = setInterval(()=>{
+    if(!el.isConnected){clearInterval(wig);return;}
+    fi=(fi+1)%frames.length; el.textContent=frames[fi];
+  }, 380+Math.random()*450);
+  return { el, xp, yp, speed: Math.random()*0.45+0.12, dir: fr?-1:1, wave: Math.random()*Math.PI*2, wAmp: Math.random()*1.2+0.4, wig };
+}
+
+// seed fish
+for (let i=0;i<5;i++) { const e=spawnBF(); if(e){e.xp=Math.random()*80+10; bents.push(e);} }
+
+function animBowl() {
+  bframe++;
+  if(bframe%130===0 && Math.random()>.45) { const e=spawnBF(); if(e) bents.push(e); }
+  for(let i=bents.length-1;i>=0;i--){
+    const e=bents[i];
+    if(!e||!e.el.isConnected){bents.splice(i,1);continue;}
+    e.xp += e.speed*e.dir*0.07;
+    const yo=Math.sin(bframe*0.03+e.wave)*e.wAmp;
+    e.el.style.left=e.xp+'%'; e.el.style.top=(e.yp+yo)+'%';
+    if((e.dir===-1&&e.xp<-18)||(e.dir===1&&e.xp>112)){clearInterval(e.wig);e.el.remove();bents.splice(i,1);}
+  }
+  requestAnimationFrame(animBowl);
+}
+requestAnimationFrame(animBowl);
+
+// ── Bubbles ────────────────────────────────────────────────────────────────────
+function spawnBubbles() {
+  const c = document.getElementById('bubbles');
+  [3,4,3,5,4,3,6,4].forEach((s,i)=>{
+    const b=document.createElement('div'); b.className='bubble';
+    b.style.width=s+'px'; b.style.height=s+'px';
+    b.style.left=(22+Math.random()*56)+'%';
+    b.style.bottom=(12+Math.random()*18)+'%';
+    b.style.animationDuration=(4+Math.random()*5)+'s';
+    b.style.animationDelay=(i*0.9+Math.random()*3)+'s';
+    c.appendChild(b);
+  });
+}
+spawnBubbles();
+
+// ── Tick + sync ────────────────────────────────────────────────────────────────
+function tick() {
+  if (localRun) {
+    if (localMode==='countdown' && getCurrentT()<=0) { doReset(); return; }
+    updDisplay();
+    pushToParent();
+  }
+}
+setInterval(tick, 250);
+// poll parent state every second to catch external changes
+setInterval(syncFromParent, 1000);
+
+// ── Init from parent ───────────────────────────────────────────────────────────
+(function init() {
+  const st = getState();
+  if (st) {
+    localT    = st.t    ?? 0;
+    localRun  = st.run  ?? false;
+    localMode = st.mode ?? 'stopwatch';
+    localLs   = st.ls   ?? 0;
+    localLaps = st.laps ?? [];
+    if (localRun && st.startWall) {
+      startedAt = performance.now() - (Date.now() - st.startWall);
+    }
+  }
+  updDisplay();
+})();
+</script>
+</body>
+</html>
