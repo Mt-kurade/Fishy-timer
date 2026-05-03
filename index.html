@@ -156,37 +156,58 @@ let iv=null,wl=null,pipWin=null;
 const BOWL_STATE_KEY='fishbowl_state';
 const AUTOSAVE_KEY='study_autosave';
 
-// ── Bowl state sync via localStorage ─────────────────────────────────────────
+// ── Bowl state sync ──────────────────────────────────────────────────────────
+// Main page is the single source of truth.
+// pushBowlState() writes current state every tick so the popup can read it.
+// processCmd() reads commands the popup sends (start/pause/reset/lap).
+
+const CMD_KEY = 'fishbowl_cmd';
+let lastCmdTs = 0;
+
 function pushBowlState(){
   try{
-    localStorage.setItem(BOWL_STATE_KEY,JSON.stringify({
-      t:S.t, run:S.run, mode:S.mode, ls:S.ls, laps:S.laps,
-      startWall:(S.run&&S.startedAt!==null)?Date.now()-(performance.now()-S.startedAt):null
+    localStorage.setItem(BOWL_STATE_KEY, JSON.stringify({
+      t:      getCurrentT(),
+      run:    S.run,
+      mode:   S.mode,
+      ls:     S.ls,
+      laps:   S.laps,
+      // startWall: absolute wall-clock ms when timer was started.
+      // Popup derives exact elapsed time from this — no drift.
+      startWall: (S.run && S.startedAt !== null)
+        ? Date.now() - (performance.now() - S.startedAt)
+        : null
     }));
   }catch{}
 }
-function pullBowlState(){
+
+// No longer needed (popup doesn't write state back), kept as no-op for safety
+function pullBowlState(){}
+
+function processCmd(){
   try{
-    const raw=localStorage.getItem(BOWL_STATE_KEY); if(!raw)return;
-    const st=JSON.parse(raw);
-    const runChanged=st.run!==S.run;
-    const lapsChanged=st.laps&&st.laps.length!==S.laps.length;
-    if(!runChanged&&!lapsChanged)return;
-    if(st.run&&!S.run){
-      S.t=st.t; S.startedAt=performance.now()-(Date.now()-st.startWall); S.run=true;
-      iv=setInterval(tick,250);
-      document.getElementById('sbtn').textContent='[ pause ]';
-      document.getElementById('lbtn').disabled=false;
-    }else if(!st.run&&S.run){
-      clearInterval(iv);iv=null; S.t=st.t; S.run=false; S.startedAt=null;
-      document.getElementById('sbtn').textContent='[ start ]';
-      document.getElementById('lbtn').disabled=true;
-      if(st.t===0){S.laps=[];S.ls=0;renderLaps();}
+    const raw = localStorage.getItem(CMD_KEY); if(!raw) return;
+    const c = JSON.parse(raw);
+    if(!c || c.ts <= lastCmdTs) return;   // already handled
+    lastCmdTs = c.ts;
+    switch(c.cmd){
+      case 'start': if(!S.run) play();   break;
+      case 'pause': if(S.run)  pause();  break;
+      case 'reset': resetTimer();        break;
+      case 'lap':
+        if(!S.run || !c.payload) break;
+        // payload already has {start, end, duration, name}
+        const p = c.payload;
+        S.laps.push({...p, ci: S.laps.length % LC.length});
+        S.ls = p.end;
+        renderLaps(); autosave(); pushBowlState();
+        break;
     }
-    if(lapsChanged){S.laps=st.laps;S.ls=st.ls;renderLaps();}
-    updClock();
   }catch{}
 }
+
+// Poll for commands from popup every 200ms
+setInterval(processCmd, 200);
 
 // ── Autosave ─────────────────────────────────────────────────────────────────
 function todayStr(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
@@ -556,8 +577,6 @@ function buildBowlInPip(pw){
     bc.appendChild(b);
   });
 }
-// Poll bowl state changes while open
-setInterval(()=>{if(pipWin&&!pipWin.closed)pullBowlState();},1000);
 
 // ── Keyboard ──────────────────────────────────────────────────────────────────
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)updClock();});
