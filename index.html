@@ -2,428 +2,649 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>fishyyyyyy · bowl</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Fishyyyyyy Timer</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
-
-  /*
-   * Window: 420 × 360px
-   * Bowl body ellipse: cx=210, cy=195, rx=205, ry=165
-   * As % of window:    cx=50%, cy=54.2%, rx=48.8%, ry=45.8%
-   * The clip-path matches the SVG body ellipse exactly so border = clip edge.
-   * The rim opening sits at cy=42 (above the body) — this sticks out above the clip,
-   * which is intentional: the open top of the bowl.
-   */
-  #bowl-root {
-    position: fixed; inset: 0;
-    /* Clip to the main bowl body ellipse — matches SVG below precisely */
-    clip-path: ellipse(48.8% 45.8% at 50% 54.2%);
+  @import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+  :root {
+    --bg:#080808; --s1:rgba(255,255,255,0.03); --s2:rgba(255,255,255,0.06);
+    --b1:rgba(255,255,255,0.08); --b2:rgba(255,255,255,0.16);
+    --text:#d0d0d0; --dim:#555; --dim2:#333; --acc:#999; --acc2:#777; --red:#b53030;
   }
-
-  /* Solid dark background inside the clipped bowl */
-  #bowl-bg-fill {
-    position: absolute; inset: 0;
-    background: radial-gradient(ellipse 88% 82% at 50% 56%, #111111 60%, #080808 100%);
-  }
-
-  /* Fish swimming layer */
-  #bowl-fish { position: absolute; inset: 0; overflow: hidden; }
-  .bf {
-    position: absolute;
-    /* Light / white fish so they show on the dark background */
-    color: rgba(210, 210, 210, 0.90);
-    font-family: 'Courier New', monospace;
-    white-space: pre; line-height: 1.2;
-    pointer-events: none; user-select: none;
-  }
-
-  /* Bubbles */
-  #bubbles { position: absolute; inset: 0; pointer-events: none; }
-  .bubble {
-    position: absolute; border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.13);
-    animation: rise linear infinite;
-  }
-  @keyframes rise {
-    0%   { transform: translateY(0) scale(1);   opacity: 0.55; }
-    100% { transform: translateY(-120px) scale(1.7); opacity: 0; }
-  }
-
-  /* Glass SVG sits on top — pointer-events off so clicks pass through */
-  #bowl-glass { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
-
-  /* Timer content — centred inside the bowl body */
-  #content {
-    position: absolute; inset: 0; z-index: 5;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    /* Nudge content down slightly to sit in visual centre of bowl body */
-    padding-top: 10px;
-    gap: 6px;
-  }
-
-  /* Big clock — clearly readable */
-  .clock {
-    font-family: 'Times New Roman', Times, serif;
-    font-size: 4rem; font-weight: 700;
-    color: #e8e8e8; letter-spacing: -0.02em; line-height: 1;
-    text-align: center;
-  }
-  .clock .sep { color: #555; animation: blink 1s step-end infinite; }
-  .clock.paused .sep { animation: none; opacity: 0.25; }
-  @keyframes blink { 50% { opacity: 0.1; } }
-
-  .mode-lbl {
-    font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
-    color: #484848; font-family: 'Times New Roman', serif;
-  }
-  .lap-tick {
-    font-family: 'Courier New', monospace;
-    font-size: 0.55rem; letter-spacing: 0.07em; color: #555; min-height: 14px;
-  }
-  .lap-tick .t { color: #888; }
-
-  .btns { display: flex; gap: 6px; margin-top: 6px; }
-  .bb {
-    background: none; border: 1px solid rgba(255,255,255,0.12);
-    color: #666; font-family: 'Times New Roman', serif;
-    font-size: 0.5rem; letter-spacing: 0.09em; text-transform: uppercase;
-    padding: 5px 11px; cursor: pointer; transition: all 0.12s;
-  }
-  .bb:hover { border-color: rgba(255,255,255,0.32); color: #bbb; }
-  .bb.bp { border-color: rgba(255,255,255,0.2); color: #aaa; }
-  .bb:disabled { opacity: 0.15; cursor: not-allowed; }
-  .bb.red:hover { border-color: #7a2020; color: #b53030; }
-
-  /* Close button — top-right, inside the clipped bowl area.
-     At 13% from top & right it sits safely within the ellipse. */
-  #close-btn {
-    position: absolute; top: 14%; right: 14%; z-index: 10;
-    background: none; border: 1px solid rgba(255,255,255,0.14);
-    color: #555; font-family: 'Courier New', monospace;
-    font-size: 0.6rem; width: 24px; height: 24px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.12s; line-height: 1;
-  }
-  #close-btn:hover { border-color: #7a2020; color: #b53030; }
-
-  /* Lap modal */
-  #lap-ovl {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.93);
-    z-index: 20; display: none; align-items: center; justify-content: center;
-  }
-  .lm {
-    background: #0a0a0a; border: 1px solid rgba(255,255,255,0.15);
-    padding: 1rem 1.2rem; width: 230px;
-  }
-  .lm h3 { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: #bbb; margin-bottom: 0.4rem; font-family: 'Times New Roman', serif; }
-  .lm p  { font-size: 0.5rem; color: #555; margin-bottom: 0.7rem; letter-spacing: 0.06em; font-family: 'Times New Roman', serif; }
-  .lm p span { color: #888; }
-  .lm input {
-    width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.14);
-    color: #ccc; font-family: 'Times New Roman', serif; font-size: 0.55rem;
-    padding: 5px 8px; outline: none; margin-bottom: 0.7rem; letter-spacing: 0.04em;
-  }
-  .lm input:focus { border-color: #666; }
-  .lm input::placeholder { color: #2a2a2a; }
-  .lm-acts { display: flex; gap: 5px; justify-content: flex-end; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Times New Roman',Times,serif;min-height:100vh;overflow-x:hidden;}
+  #ascii-sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+  .ascii-entity{position:absolute;color:rgba(210,210,210,0.6);font-family:'Courier New',Courier,monospace;white-space:pre;line-height:1.2;pointer-events:none;user-select:none;}
+  .app{position:relative;z-index:1;display:grid;grid-template-columns:1fr 310px;min-height:100vh;}
+  .main{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;gap:2rem;}
+  .mode-row{display:flex;align-items:center;gap:4px;font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim2);}
+  .mode-sep{color:var(--dim2);}
+  .mbtn{background:none;border:none;font-family:'Times New Roman',Times,serif;font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);cursor:pointer;padding:2px 6px;transition:color 0.12s;}
+  .mbtn:hover{color:var(--acc);}
+  .mbtn.on{color:var(--text);text-decoration:underline;text-underline-offset:4px;}
+  .clock-wrap{text-align:center;}
+  .clock{font-family:'Times New Roman',Times,serif;font-size:clamp(4.5rem,16vw,11rem);font-weight:700;letter-spacing:-0.02em;color:var(--text);line-height:1;}
+  .clock .sep{color:var(--dim);animation:blink 1s step-end infinite;}
+  .clock.paused .sep{animation:none;opacity:0.25;}
+  @keyframes blink{50%{opacity:0.12;}}
+  .ticker{font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-top:0.65rem;height:15px;}
+  .ticker .t{color:var(--acc);}
+  .controls{display:flex;gap:8px;align-items:center;}
+  .btn{background:none;border:1px solid var(--b1);color:var(--dim);font-family:'Times New Roman',Times,serif;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;padding:7px 16px;cursor:pointer;transition:all 0.12s;}
+  .btn:hover{border-color:var(--b2);color:var(--acc);}
+  .btn:active{opacity:0.5;}
+  .btn.main{border-color:var(--acc2);color:var(--text);padding:8px 26px;font-size:0.65rem;}
+  .btn.main:hover{border-color:var(--text);}
+  .btn.lap-b{border-color:var(--b2);color:var(--acc2);}
+  .btn.lap-b:disabled{opacity:0.18;cursor:not-allowed;}
+  .btn.red:hover{border-color:var(--red);color:var(--red);}
+  .btn.popout{border-color:var(--b2);color:var(--acc2);font-family:'Courier New',monospace;font-size:0.6rem;}
+  .btn.popout:hover{border-color:var(--acc);color:var(--text);}
+  .btn.popout.active{border-color:var(--acc);color:var(--acc);}
+  .tips{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:0.56rem;color:var(--dim2);letter-spacing:0.08em;text-transform:uppercase;}
+  .k{border:1px solid var(--dim2);padding:1px 4px;font-size:0.53rem;}
+  .side{border-left:1px solid var(--b1);background:var(--s1);display:flex;flex-direction:column;overflow:hidden;font-size:0.6rem;}
+  .phd{padding:0.9rem 1rem;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;font-size:0.56rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);}
+  .phd button{background:none;border:none;font-family:'Times New Roman',Times,serif;font-size:0.53rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim2);cursor:pointer;transition:color 0.12s;}
+  .phd button:hover{color:var(--red);}
+  .laps-list{flex:1;overflow-y:auto;padding:0.5rem;display:flex;flex-direction:column;gap:4px;}
+  .laps-list::-webkit-scrollbar{width:2px;}
+  .laps-list::-webkit-scrollbar-thumb{background:var(--b1);}
+  .empty-msg{color:var(--dim2);font-size:0.56rem;line-height:2;padding:0.3rem;letter-spacing:0.06em;}
+  .lap-item{border-left:2px solid var(--lc,var(--dim));padding:6px 10px;background:var(--s1);animation:si 0.18s ease;}
+  @keyframes si{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;}}
+  .lr1{display:flex;justify-content:space-between;margin-bottom:2px;}
+  .ln{font-size:0.61rem;color:var(--text);max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.03em;}
+  .lnum{font-size:0.54rem;color:var(--dim2);}
+  .ldur{font-size:0.74rem;font-weight:700;color:var(--lc,var(--acc));letter-spacing:0.03em;}
+  .lrng{font-size:0.53rem;color:var(--dim2);margin-top:1px;}
+  .shd{padding:0.7rem 1rem;border-top:1px solid var(--b1);border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;font-size:0.53rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);}
+  .shd button{background:none;border:none;font-family:'Times New Roman',Times,serif;font-size:0.5rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim2);cursor:pointer;transition:color 0.12s;}
+  .shd button:hover{color:var(--red);}
+  .sess-list{max-height:165px;overflow-y:auto;padding:0.4rem 0.5rem;display:flex;flex-direction:column;gap:4px;}
+  .sess-list::-webkit-scrollbar{width:2px;}
+  .sess-list::-webkit-scrollbar-thumb{background:var(--b1);}
+  .si{padding:6px 9px;border:1px solid var(--b1);cursor:pointer;transition:border-color 0.12s;}
+  .si:hover{border-color:var(--b2);}
+  .sr1{display:flex;justify-content:space-between;margin-bottom:2px;}
+  .sdate{font-size:0.54rem;color:var(--dim);}
+  .stot{font-size:0.6rem;font-weight:700;color:var(--acc);}
+  .sdesc{font-size:0.52rem;color:var(--dim2);line-height:1.5;}
+  .no-sess{font-size:0.54rem;color:var(--dim2);padding:0.5rem 0.3rem;letter-spacing:0.06em;}
+  .ovl{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:flex;align-items:center;justify-content:center;}
+  .modal{background:#0e0e0e;border:1px solid var(--b2);padding:1.75rem 2rem;width:350px;}
+  .modal h3{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text);margin-bottom:0.5rem;}
+  .modal p{color:var(--dim);font-size:0.58rem;letter-spacing:0.06em;margin-bottom:1.1rem;}
+  .modal p .m{color:var(--acc);}
+  .modal input{width:100%;background:var(--s2);border:1px solid var(--b2);color:var(--text);font-family:'Times New Roman',Times,serif;font-size:0.65rem;padding:8px 11px;outline:none;margin-bottom:1rem;letter-spacing:0.04em;transition:border-color 0.12s;}
+  .modal input:focus{border-color:var(--acc);}
+  .modal input::placeholder{color:var(--dim2);}
+  .macts{display:flex;gap:7px;justify-content:flex-end;}
+  .modal.wide{width:460px;max-width:94vw;max-height:80vh;overflow-y:auto;}
+  .sm-laps{margin-top:0.9rem;display:flex;flex-direction:column;gap:4px;}
+  body.fs .side{display:none;}
+  body.fs .app{grid-template-columns:1fr;}
+  body.fs .tips{display:none;}
 </style>
 </head>
 <body>
-
-<div id="bowl-root">
-
-  <!-- 1. Dark background (filled by clip-path ellipse) -->
-  <div id="bowl-bg-fill"></div>
-
-  <!-- 2. Fish swimming inside the bowl -->
-  <div id="bowl-fish"></div>
-
-  <!-- 3. Rising bubbles -->
-  <div id="bubbles"></div>
-
-  <!--
-    4. Glass SVG — drawn on top so the rim, edge ring and sheen overlay everything.
-       viewBox matches the window: 420 × 360.
-       Main bowl body ellipse: cx=210 cy=195 rx=205 ry=165  (same as clip-path above)
-       Open rim ellipse at top: cy=42 (the visible open mouth of the bowl)
-  -->
-  <svg id="bowl-glass" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <defs>
-      <!-- Upper-left glass sheen -->
-      <radialGradient id="shineL" cx="26%" cy="28%" r="32%">
-        <stop offset="0%"   stop-color="rgba(255,255,255,0.07)"/>
-        <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-      </radialGradient>
-      <!-- Lower-right secondary sheen -->
-      <radialGradient id="shineR" cx="75%" cy="72%" r="22%">
-        <stop offset="0%"   stop-color="rgba(255,255,255,0.035)"/>
-        <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-      </radialGradient>
-      <!-- Rim gradient — brighter in the middle like real glass -->
-      <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stop-color="rgba(255,255,255,0.03)"/>
-        <stop offset="28%"  stop-color="rgba(255,255,255,0.20)"/>
-        <stop offset="52%"  stop-color="rgba(255,255,255,0.30)"/>
-        <stop offset="76%"  stop-color="rgba(255,255,255,0.18)"/>
-        <stop offset="100%" stop-color="rgba(255,255,255,0.02)"/>
-      </linearGradient>
-      <clipPath id="bowlClip">
-        <ellipse cx="210" cy="195" rx="205" ry="165"/>
-      </clipPath>
-    </defs>
-
-    <!-- Outer glass edge ring — this IS the bowl border, matching clip-path -->
-    <ellipse cx="210" cy="195" rx="205" ry="165"
-             fill="none" stroke="rgba(190,190,190,0.22)" stroke-width="1.8"/>
-
-    <!-- Glass sheen overlays (clipped so they don't bleed outside) -->
-    <ellipse cx="210" cy="195" rx="205" ry="165" fill="url(#shineL)" clip-path="url(#bowlClip)"/>
-    <ellipse cx="210" cy="195" rx="205" ry="165" fill="url(#shineR)" clip-path="url(#bowlClip)"/>
-
-    <!-- Upper-left highlight streak (like the glint on real glass) -->
-    <ellipse cx="118" cy="108" rx="22" ry="62"
-             fill="rgba(255,255,255,0.030)" transform="rotate(-22 118 108)"/>
-
-    <!-- ── Open rim at the top ── -->
-    <!-- The rim sits at y≈42, width matches roughly the bowl opening at that height.
-         At cy=195, the bowl width at y=42 is: rx * sqrt(1-((42-195)/165)^2) ≈ 135px each side -->
-    <!-- Outer rim ellipse -->
-    <ellipse cx="210" cy="42" rx="148" ry="19"
-             fill="rgba(14,14,14,0.0)" stroke="rgba(200,200,200,0.35)" stroke-width="1.8"/>
-    <!-- Rim fill — glass thickness colour -->
-    <ellipse cx="210" cy="42" rx="148" ry="19" fill="url(#rimGrad)" opacity="0.8"/>
-    <!-- Inner rim shadow (depth of the glass wall) -->
-    <ellipse cx="210" cy="46" rx="132" ry="12"
-             fill="rgba(0,0,0,0.20)" stroke="rgba(255,255,255,0.06)" stroke-width="0.7"/>
-
-    <!-- Rim-to-body transition curves (glass wall thickness on left & right) -->
-    <path d="M 62,42 Q 59,46 62,56"  stroke="rgba(255,255,255,0.16)" stroke-width="1.4" fill="none"/>
-    <path d="M 358,42 Q 361,46 358,56" stroke="rgba(255,255,255,0.16)" stroke-width="1.4" fill="none"/>
-
-    <!-- Subtle water line near the bottom of the bowl -->
-    <text x="30" y="295"
-          font-family="'Courier New',monospace" font-size="7.5"
-          fill="rgba(90,90,90,0.30)" letter-spacing="3.5">~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~</text>
-
-    <!-- Base foot / stand shadow -->
-    <ellipse cx="210" cy="356" rx="90" ry="7"
-             fill="rgba(255,255,255,0.018)" stroke="rgba(255,255,255,0.07)" stroke-width="0.9"/>
-  </svg>
-
-  <!-- 5. Timer content -->
-  <div id="content">
-    <div class="clock paused" id="clock">
-      <span id="sm">00</span><span class="sep">:</span><span id="ss">00</span>
+<div id="ascii-sky"></div>
+<div class="app">
+  <main class="main">
+    <div class="mode-row">
+      <button class="mbtn on" id="btn-sw" onclick="setMode('stopwatch')">stopwatch</button>
+      <span class="mode-sep">/</span>
+      <button class="mbtn" id="btn-cd" onclick="setMode('countdown')">countdown</button>
     </div>
-    <div class="mode-lbl" id="mlbl">// stopwatch</div>
-    <div class="lap-tick" id="ltick"></div>
-    <div class="btns">
-      <button class="bb red" onclick="doReset()">[ rst ]</button>
-      <button class="bb bp" id="sbtn" onclick="doToggle()">[ start ]</button>
-      <button class="bb" id="lbtn" onclick="doLap()" disabled>[ lap ]</button>
-    </div>
-  </div>
-
-  <!-- 6. Close button (inside the ellipse area) -->
-  <button id="close-btn" onclick="window.close()">✕</button>
-
-  <!-- 7. Lap naming modal -->
-  <div id="lap-ovl">
-    <div class="lm">
-      <h3>// name this block</h3>
-      <p>duration: <span id="ldur">—</span></p>
-      <input type="text" id="linput" placeholder="subject / topic ..." maxlength="40"/>
-      <div class="lm-acts">
-        <button class="bb" onclick="cancelLap()">[ cancel ]</button>
-        <button class="bb bp" onclick="saveLap()">[ save ]</button>
+    <div class="clock-wrap">
+      <div class="clock paused" id="clock">
+        <span id="seg-m">00</span><span class="sep">:</span><span id="seg-s">00</span>
       </div>
+      <div class="ticker" id="ticker"></div>
+    </div>
+    <div class="controls">
+      <button class="btn red" onclick="resetTimer()">[ reset ]</button>
+      <button class="btn main" id="sbtn" onclick="toggleTimer()">[ start ]</button>
+      <button class="btn lap-b" id="lbtn" onclick="triggerLap()" disabled>[ lap ]</button>
+    </div>
+    <div class="controls" style="margin-top:-0.5rem;">
+      <button class="btn popout" id="popout-btn" onclick="toggleBowl()">&gt;º)&gt; pop-out fishbowl</button>
+    </div>
+    <div class="tips">
+      <span><span class="k">space</span> play/pause</span>
+      <span><span class="k">L</span> lap</span>
+      <span><span class="k">R</span> reset</span>
+      <span><span class="k">↑↓</span> ±60s</span>
+      <span><span class="k">F</span> fullscreen</span>
+      <span><span class="k">P</span> pop-out</span>
+    </div>
+  </main>
+  <aside class="side">
+    <div class="phd"><span>// current session</span><button onclick="clearLaps()">clear</button></div>
+    <div class="laps-list" id="laps-list">
+      <div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>
+    </div>
+    <div class="shd"><span>// past sessions</span><button onclick="clearSessions()">clear all</button></div>
+    <div class="sess-list" id="sess-list"><div class="no-sess">&gt; no saved sessions</div></div>
+  </aside>
+</div>
+
+<div class="ovl" id="lap-modal" style="display:none;">
+  <div class="modal">
+    <h3>// name this block</h3>
+    <p>duration: <span class="m" id="mdur">—</span></p>
+    <input type="text" id="linput" placeholder="physics / chapter 5 / review ..." maxlength="40"/>
+    <div class="macts">
+      <button class="btn" onclick="cancelLap()">[ cancel ]</button>
+      <button class="btn main" onclick="saveLap()">[ save ]</button>
     </div>
   </div>
-
-</div><!-- #bowl-root -->
+</div>
+<div class="ovl" id="sess-modal" style="display:none;">
+  <div class="modal wide">
+    <h3 id="smtitle">// session</h3>
+    <p id="smsub"></p>
+    <div class="sm-laps" id="smlaps"></div>
+    <div class="macts" style="margin-top:1.1rem;"><button class="btn main" onclick="closeSM()">[ close ]</button></div>
+  </div>
+</div>
 
 <script>
-// ── State via localStorage ─────────────────────────────────────────────────────
-const KEY = 'fishbowl_state';
-function getState(){ try{ return JSON.parse(localStorage.getItem(KEY)||'null'); }catch{ return null; } }
-function setState(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch{} }
+const LC=['#aaa','#888','#ccc','#666','#bbb','#999','#ddd','#777'];
+let S={t:0,run:false,mode:'stopwatch',ls:0,laps:[],pend:null,startedAt:null};
+let iv=null,wl=null,pipWin=null;
+const BOWL_STATE_KEY='fishbowl_state';
+const AUTOSAVE_KEY='study_autosave';
 
-const pad = n => String(Math.floor(Math.abs(n))).padStart(2,'0');
-const fmt = s => `${pad(s/60)}:${pad(s%60)}`;
-
-let lT=0, lRun=false, lMode='stopwatch', lLs=0, lLaps=[];
-let sAt=null, pend=null;
-
-function getCurT(){
-  if(!lRun || sAt===null) return lT;
-  const el = (performance.now()-sAt)/1000;
-  return lMode==='countdown' ? Math.max(0,lT-el) : lT+el;
+// ── Bowl state sync via localStorage ─────────────────────────────────────────
+function pushBowlState(){
+  try{
+    localStorage.setItem(BOWL_STATE_KEY,JSON.stringify({
+      t:S.t, run:S.run, mode:S.mode, ls:S.ls, laps:S.laps,
+      startWall:(S.run&&S.startedAt!==null)?Date.now()-(performance.now()-S.startedAt):null
+    }));
+  }catch{}
+}
+function pullBowlState(){
+  try{
+    const raw=localStorage.getItem(BOWL_STATE_KEY); if(!raw)return;
+    const st=JSON.parse(raw);
+    const runChanged=st.run!==S.run;
+    const lapsChanged=st.laps&&st.laps.length!==S.laps.length;
+    if(!runChanged&&!lapsChanged)return;
+    if(st.run&&!S.run){
+      S.t=st.t; S.startedAt=performance.now()-(Date.now()-st.startWall); S.run=true;
+      iv=setInterval(tick,250);
+      document.getElementById('sbtn').textContent='[ pause ]';
+      document.getElementById('lbtn').disabled=false;
+    }else if(!st.run&&S.run){
+      clearInterval(iv);iv=null; S.t=st.t; S.run=false; S.startedAt=null;
+      document.getElementById('sbtn').textContent='[ start ]';
+      document.getElementById('lbtn').disabled=true;
+      if(st.t===0){S.laps=[];S.ls=0;renderLaps();}
+    }
+    if(lapsChanged){S.laps=st.laps;S.ls=st.ls;renderLaps();}
+    updClock();
+  }catch{}
 }
 
-function updDisp(){
-  const t = Math.floor(getCurT());
-  document.getElementById('sm').textContent = pad(t/60);
-  document.getElementById('ss').textContent = pad(t%60);
-  document.getElementById('clock').classList.toggle('paused', !lRun);
-  document.getElementById('mlbl').textContent = `// ${lMode}`;
-  const lt = document.getElementById('ltick');
-  if(lRun){ const e=getCurT()-lLs; lt.innerHTML=`lap ${lLaps.length+1} <span class="t">${fmt(e)}</span>`; }
-  else lt.textContent = '';
-  document.getElementById('sbtn').textContent = lRun ? '[ pause ]' : '[ start ]';
-  document.getElementById('lbtn').disabled = !lRun;
+// ── Autosave ─────────────────────────────────────────────────────────────────
+function todayStr(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
+function autosave(){
+  if(S.t<1&&!S.laps.length)return;
+  try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({date:todayStr(),t:S.t,mode:S.mode,ls:S.ls,laps:S.laps,wasRunning:S.run}));}catch{}
+}
+function loadAutosave(){
+  try{const raw=localStorage.getItem(AUTOSAVE_KEY);if(!raw)return null;const saved=JSON.parse(raw);if(saved.date!==todayStr()){localStorage.removeItem(AUTOSAVE_KEY);return null;}return saved;}catch{return null;}
+}
+function clearAutosave(){localStorage.removeItem(AUTOSAVE_KEY);}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const pad=n=>String(Math.floor(Math.abs(n))).padStart(2,'0');
+const fmt=s=>`${pad(s/60)}:${pad(s%60)}`;
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function getCurrentT(){
+  if(!S.run||S.startedAt===null)return S.t;
+  const elapsed=(performance.now()-S.startedAt)/1000;
+  return S.mode==='countdown'?Math.max(0,S.t-elapsed):S.t+elapsed;
 }
 
-function pushUp(){
-  setState({
-    t: getCurT(), run: lRun, mode: lMode, ls: lLs, laps: lLaps,
-    startWall: lRun ? Date.now()-(performance.now()-sAt) : null
-  });
+// ── Display ───────────────────────────────────────────────────────────────────
+function updClock(){
+  const t=Math.floor(getCurrentT());
+  document.getElementById('seg-m').textContent=pad(t/60);
+  document.getElementById('seg-s').textContent=pad(t%60);
+  document.getElementById('clock').classList.toggle('paused',!S.run);
+  const tk=document.getElementById('ticker');
+  if(S.run){const e=getCurrentT()-S.ls;tk.innerHTML=`lap ${S.laps.length+1} &nbsp;<span class="t">${fmt(e)}</span>`;}
+  else tk.textContent='';
+}
+function tick(){
+  if(!S.run)return;
+  if(S.mode==='countdown'&&getCurrentT()<=0){S.t=0;S.startedAt=null;pause();return;}
+  updClock(); pushBowlState();
+  if(Math.round(getCurrentT()*2)%10===0)autosave();
 }
 
-function syncDown(){
-  const st = getState(); if(!st) return;
-  const wasRun = lRun;
-  if(st.run !== lRun || Math.abs(st.t - lT) > 1.5){
-    lT=st.t; lRun=st.run; lMode=st.mode||'stopwatch'; lLs=st.ls||0; lLaps=st.laps||[];
-    if(lRun && !wasRun && st.startWall){ sAt = performance.now()-(Date.now()-st.startWall); }
-    else if(!lRun){ sAt=null; }
-  }
-  updDisp();
+// ── Play/Pause/Reset ──────────────────────────────────────────────────────────
+function play(){
+  if(S.run)return; S.run=true; S.startedAt=performance.now();
+  iv=setInterval(tick,250);
+  document.getElementById('sbtn').textContent='[ pause ]';
+  document.getElementById('lbtn').disabled=false;
+  reqWL(); updClock(); pushBowlState();
+}
+function pause(){
+  if(!S.run&&S.startedAt===null)return;
+  S.t=getCurrentT();S.startedAt=null;S.run=false;
+  clearInterval(iv);iv=null;
+  document.getElementById('sbtn').textContent='[ start ]';
+  relWL();autosave();updClock();pushBowlState();
+}
+function toggleTimer(){S.run?pause():play();}
+function resetTimer(){
+  if(S.laps.length)saveSess(); pause();
+  S.t=0;S.laps=[];S.ls=0;S.pend=null;S.startedAt=null;
+  document.getElementById('lbtn').disabled=true;
+  document.getElementById('lap-modal').style.display='none';
+  clearAutosave();updClock();renderLaps();pushBowlState();
+}
+function setMode(m){
+  S.mode=m;
+  document.getElementById('btn-sw').classList.toggle('on',m==='stopwatch');
+  document.getElementById('btn-cd').classList.toggle('on',m==='countdown');
+  resetTimer();
 }
 
-// ── Controls ──────────────────────────────────────────────────────────────────
-function doToggle(){
-  if(lRun){ lT=getCurT(); sAt=null; lRun=false; }
-  else { sAt=performance.now(); lRun=true; }
-  pushUp(); updDisp();
-}
-function doReset(){
-  lT=0; lRun=false; sAt=null; lLs=0; lLaps=[]; pend=null;
-  document.getElementById('lap-ovl').style.display='none';
-  pushUp(); updDisp();
-}
-function doLap(){
-  if(!lRun) return;
-  const now=getCurT(); const dur=now-lLs; if(dur<1) return;
-  pend={start:lLs, end:now, duration:dur};
-  document.getElementById('ldur').textContent = fmt(dur);
-  document.getElementById('linput').value = '';
-  document.getElementById('lap-ovl').style.display = 'flex';
-  setTimeout(()=>document.getElementById('linput').focus(), 30);
+// ── Laps ──────────────────────────────────────────────────────────────────────
+function triggerLap(){
+  if(!S.run)return; const now=getCurrentT(); const dur=now-S.ls; if(dur<1)return;
+  S.pend={start:S.ls,end:now,duration:dur};
+  document.getElementById('mdur').textContent=fmt(dur);
+  document.getElementById('linput').value='';
+  document.getElementById('lap-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('linput').focus(),40);
 }
 function saveLap(){
-  const name = document.getElementById('linput').value.trim() || `block ${lLaps.length+1}`;
-  lLaps.push({...pend, name, ci:lLaps.length%6});
-  lLs=pend.end; pend=null;
-  document.getElementById('lap-ovl').style.display = 'none';
-  pushUp(); updDisp();
+  const name=document.getElementById('linput').value.trim()||`block ${S.laps.length+1}`;
+  S.laps.push({...S.pend,name,ci:S.laps.length%LC.length});
+  S.ls=S.pend.end;S.pend=null;
+  document.getElementById('lap-modal').style.display='none';
+  autosave();renderLaps();pushBowlState();
 }
-function cancelLap(){ pend=null; document.getElementById('lap-ovl').style.display='none'; }
-document.getElementById('linput').addEventListener('keydown', e=>{
-  if(e.key==='Enter') saveLap();
-  if(e.key==='Escape') cancelLap();
-});
+function cancelLap(){S.pend=null;document.getElementById('lap-modal').style.display='none';}
+function clearLaps(){
+  if(!S.laps.length)return;
+  if(confirm('clear current session?')){S.laps=[];S.ls=getCurrentT();autosave();renderLaps();pushBowlState();}
+}
+function lapHTML(l,i){const c=LC[l.ci];return`<div class="lap-item" style="--lc:${c}"><div class="lr1"><span class="ln">${esc(l.name)}</span><span class="lnum">#${i+1}</span></div><div class="ldur">${fmt(l.duration)}</div><div class="lrng">${fmt(l.start)} → ${fmt(l.end)}</div></div>`;}
+function renderLaps(){
+  const el=document.getElementById('laps-list');
+  if(!S.laps.length){el.innerHTML='<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';return;}
+  el.innerHTML=S.laps.map(lapHTML).join('');el.scrollTop=el.scrollHeight;
+}
 
-// ── Tick + sync ───────────────────────────────────────────────────────────────
-setInterval(()=>{
-  if(lRun){
-    if(lMode==='countdown' && getCurT()<=0){ doReset(); return; }
-    updDisp(); pushUp();
+// ── Sessions ──────────────────────────────────────────────────────────────────
+function getS(){try{return JSON.parse(localStorage.getItem('study_s')||'[]');}catch{return[];}}
+function saveSess(){
+  if(!S.laps.length)return; const all=getS();
+  all.unshift({date:new Date().toISOString(),laps:S.laps,total:S.laps.reduce((a,l)=>a+l.duration,0)});
+  localStorage.setItem('study_s',JSON.stringify(all.slice(0,50)));renderSess();
+}
+function clearSessions(){if(!confirm('delete all saved sessions?'))return;localStorage.removeItem('study_s');renderSess();}
+function renderSess(){
+  const el=document.getElementById('sess-list');const all=getS();
+  if(!all.length){el.innerHTML='<div class="no-sess">&gt; no saved sessions</div>';return;}
+  el.innerHTML=all.map((s,i)=>{const d=new Date(s.date);return`<div class="si" onclick="viewSess(${i})"><div class="sr1"><span class="sdate">${d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</span><span class="stot">${fmt(s.total)}</span></div><div class="sdesc">${s.laps.length} block${s.laps.length===1?'':'s'} · ${s.laps.map(l=>esc(l.name)).join(', ').substring(0,46)}</div></div>`;}).join('');
+}
+function viewSess(i){
+  const s=getS()[i];if(!s)return; const d=new Date(s.date);
+  document.getElementById('smtitle').textContent='// '+d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('smsub').textContent=d.toLocaleTimeString()+' · total: '+fmt(s.total);
+  document.getElementById('smlaps').innerHTML=s.laps.map(lapHTML).join('');
+  document.getElementById('sess-modal').style.display='flex';
+}
+function closeSM(){document.getElementById('sess-modal').style.display='none';}
+
+// ── Document Picture-in-Picture bowl ─────────────────────────────────────────
+// Uses the Document PiP API — always on top, no rectangular chrome, position is preserved by browser
+const BOWL_W=440, BOWL_H=440;
+
+function toggleBowl(){
+  if(pipWin&&!pipWin.closed){pipWin.close();return;}
+  openBowl();
+}
+
+async function openBowl(){
+  // Prefer Document Picture-in-Picture (Chrome 116+) — true shaped always-on-top window
+  if('documentPictureInPicture' in window){
+    try{
+      pushBowlState();
+      pipWin=await documentPictureInPicture.requestWindow({width:BOWL_W,height:BOWL_H});
+      buildBowlInPip(pipWin);
+      pipWin.addEventListener('pagehide',()=>{
+        pipWin=null;
+        document.getElementById('popout-btn').classList.remove('active');
+        document.getElementById('popout-btn').textContent='>º)> pop-out fishbowl';
+        pullBowlState();
+      });
+      document.getElementById('popout-btn').classList.add('active');
+      document.getElementById('popout-btn').textContent='>º)> bowl is open · click to close';
+      return;
+    }catch(e){console.warn('PiP failed, falling back',e);}
   }
-}, 250);
-setInterval(syncDown, 1000);
-
-// ── Bowl fish ─────────────────────────────────────────────────────────────────
-// Larger ASCII designs, light/white colour on dark background
-const bowlFish = [
-  { l:[`><(((º>`,`><((( >`], r:[`<º)))><`,`< )))><`] },
-  { l:[`>°)))><`,`>°)))-`],  r:[`<(((°<`, `-(((°<`]  },
-  { l:[`>·(((º>`,`>=(((º>`], r:[`<º)))·<`,`<º)))==<`] },
-  { l:[`-º))))>`,`-°))))>`], r:[`<((((º-`,`<((((°-`]  },
-  { l:[`»»»º>`,`»»»°>`],     r:[`<º«««`,  `<°«««`]    },
-  { l:[`~·~·º>`,`~·~·°>`],   r:[`<º·~·~`, `<°·~·~`]   },
-  { l:[`===º>>>`,`===°>>>`],  r:[`<<<º===`,`<<<°===`]   },
-  { l:[`ø·ø·ø>`,`ø·ø·ø-`],   r:[`<ø·ø·ø`, `-ø·ø·ø`]   },
-  { l:[`*==º==>`,`*==°==>`],  r:[`<==º==*`, `<==°==*`]  },
-  { l:[`--·º)>`,`--·°)>`],    r:[`<(º·--`, `<(°·--`]   },
-];
-
-const bents=[]; let bframe=0;
-
-function spawnBF(){
-  const sky = document.getElementById('bowl-fish');
-  const spec = bowlFish[Math.floor(Math.random()*bowlFish.length)];
-  const fr = Math.random() > 0.5;
-  const frames = fr ? spec.r : spec.l;
-  const el = document.createElement('div');
-  el.className = 'bf';
-  el.textContent = frames[0];
-  // Fish size: 1.1rem – 1.8rem — clearly visible
-  el.style.fontSize = `${(Math.random()*0.7 + 1.1).toFixed(2)}rem`;
-  el.style.opacity  = (Math.random()*0.18 + 0.78).toFixed(2);
-  // Y stays within bowl body: 20% – 68%
-  const yp = Math.random()*48 + 20;
-  let xp = fr ? 112 : -20;
-  el.style.top  = yp+'%';
-  el.style.left = xp+'%';
-  sky.appendChild(el);
-  let fi=0;
-  const wig = setInterval(()=>{
-    if(!el.isConnected){ clearInterval(wig); return; }
-    fi=(fi+1)%frames.length; el.textContent=frames[fi];
-  }, 320+Math.random()*360);
-  return { el, xp, yp, speed:Math.random()*0.55+0.18, dir:fr?-1:1,
-           wave:Math.random()*Math.PI*2, wAmp:Math.random()*1.6+0.6, wig };
+  // Fallback: window.open
+  openBowlWindow();
 }
 
-// Seed 7 fish already spread inside the bowl
-for(let i=0; i<7; i++){
-  const e = spawnBF();
-  if(e){ e.xp=Math.random()*68+8; e.el.style.left=e.xp+'%'; bents.push(e); }
-}
-
-function animBowl(){
-  bframe++;
-  if(bframe%95===0 && Math.random()>0.38){ const e=spawnBF(); if(e) bents.push(e); }
-  for(let i=bents.length-1; i>=0; i--){
-    const e=bents[i];
-    if(!e || !e.el.isConnected){ bents.splice(i,1); continue; }
-    e.xp += e.speed*e.dir*0.07;
-    const yo = Math.sin(bframe*0.028+e.wave)*e.wAmp;
-    e.el.style.left = e.xp+'%';
-    e.el.style.top  = (e.yp+yo)+'%';
-    if((e.dir===-1 && e.xp<-24)||(e.dir===1 && e.xp>116)){
-      clearInterval(e.wig); e.el.remove(); bents.splice(i,1);
+function openBowlWindow(){
+  pushBowlState();
+  const sw=window.screen.availWidth, sh=window.screen.availHeight;
+  const left=Math.max(0,sw-BOWL_W-20), top=Math.max(0,sh-BOWL_H-60);
+  const win=window.open('bowl-popup.html','FishyBowl',
+    `width=${BOWL_W},height=${BOWL_H},left=${left},top=${top},resizable=no,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`);
+  if(!win){showToast('> pop-ups blocked — please allow pop-ups for this site');return;}
+  pipWin=win;
+  document.getElementById('popout-btn').classList.add('active');
+  document.getElementById('popout-btn').textContent='>º)> bowl is open · click to close';
+  const chk=setInterval(()=>{
+    if(!pipWin||pipWin.closed){
+      clearInterval(chk);pipWin=null;
+      document.getElementById('popout-btn').classList.remove('active');
+      document.getElementById('popout-btn').textContent='>º)> pop-out fishbowl';
+      pullBowlState();
     }
-  }
-  requestAnimationFrame(animBowl);
+  },500);
 }
-requestAnimationFrame(animBowl);
 
-// ── Bubbles ───────────────────────────────────────────────────────────────────
-const bc = document.getElementById('bubbles');
-[4,5,4,6,5,4,7,5,6,4].forEach((s,i)=>{
-  const b = document.createElement('div'); b.className='bubble';
-  b.style.width  = s+'px';
-  b.style.height = s+'px';
-  b.style.left   = (22+Math.random()*56)+'%';
-  b.style.bottom = (8+Math.random()*24)+'%';
-  b.style.animationDuration = (5+Math.random()*5)+'s';
-  b.style.animationDelay   = (i*0.75+Math.random()*3)+'s';
-  bc.appendChild(b);
+// Inject the bowl UI directly into the PiP document
+function buildBowlInPip(pw){
+  const doc=pw.document;
+  doc.head.innerHTML=`
+  <meta charset="utf-8"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{width:100%;height:100%;overflow:hidden;background:transparent;}
+    #bowl-root{position:fixed;inset:0;clip-path:ellipse(48% 44% at 50% 54%);}
+    #bowl-bg-fill{position:absolute;inset:0;background:radial-gradient(ellipse 90% 86% at 50% 54%,#111 55%,#0a0a0a 80%,#060606 100%);}
+    #bowl-fish{position:absolute;inset:0;overflow:hidden;}
+    .bf{position:absolute;color:rgba(160,160,160,0.55);font-family:'Courier New',monospace;white-space:pre;line-height:1.2;pointer-events:none;user-select:none;font-size:0.72rem;}
+    #bubbles{position:absolute;inset:0;pointer-events:none;}
+    .bubble{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,0.10);animation:rise linear infinite;}
+    @keyframes rise{0%{transform:translateY(0) scale(1);opacity:0.45;}100%{transform:translateY(-130px) scale(1.8);opacity:0;}}
+    #bowl-glass{position:absolute;inset:0;pointer-events:none;z-index:4;}
+    #content{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:18px;gap:4px;}
+    .clock{font-family:'Times New Roman',Times,serif;font-size:5.2rem;font-weight:700;color:#f0f0f0;letter-spacing:-0.03em;line-height:1;text-align:center;text-shadow:0 0 28px rgba(255,255,255,0.12);position:relative;z-index:2;}
+    .clock .sep{color:#4a4a4a;animation:blink 1s step-end infinite;}
+    .clock.paused .sep{animation:none;opacity:0.22;}
+    @keyframes blink{50%{opacity:0.08;}}
+    .mode-lbl{font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:#3a3a3a;font-family:'Times New Roman',serif;position:relative;z-index:2;}
+    .lap-tick{font-family:'Courier New',monospace;font-size:0.58rem;letter-spacing:0.07em;color:#4a4a4a;min-height:14px;position:relative;z-index:2;}
+    .lap-tick .t{color:#777;}
+    .btns{display:flex;gap:8px;margin-top:10px;position:relative;z-index:2;}
+    .bb{background:none;border:1px solid rgba(255,255,255,0.14);color:#666;font-family:'Times New Roman',serif;font-size:0.62rem;letter-spacing:0.09em;text-transform:uppercase;padding:6px 14px;cursor:pointer;transition:all 0.12s;}
+    .bb:hover{border-color:rgba(255,255,255,0.35);color:#ccc;}
+    .bb.bp{border-color:rgba(255,255,255,0.22);color:#aaa;}
+    .bb:disabled{opacity:0.14;cursor:not-allowed;}
+    .bb.red:hover{border-color:#7a2020;color:#c04040;}
+    #close-btn{position:absolute;top:16%;right:15%;z-index:10;background:rgba(10,10,10,0.6);border:1px solid rgba(255,255,255,0.14);color:#555;font-family:'Courier New',monospace;font-size:0.6rem;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.12s;line-height:1;}
+    #close-btn:hover{border-color:#8a2020;color:#c04040;}
+    #lap-ovl{position:absolute;inset:0;background:rgba(0,0,0,0.93);z-index:20;display:none;align-items:center;justify-content:center;}
+    .lm{background:#0c0c0c;border:1px solid rgba(255,255,255,0.15);padding:1rem 1.3rem;width:240px;}
+    .lm h3{font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:#bbb;margin-bottom:0.5rem;font-family:'Times New Roman',serif;}
+    .lm p{font-size:0.52rem;color:#555;margin-bottom:0.8rem;letter-spacing:0.06em;font-family:'Times New Roman',serif;}
+    .lm p span{color:#888;}
+    .lm input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.14);color:#ccc;font-family:'Times New Roman',serif;font-size:0.58rem;padding:6px 8px;outline:none;margin-bottom:0.8rem;letter-spacing:0.04em;}
+    .lm input:focus{border-color:#666;}
+    .lm input::placeholder{color:#2a2a2a;}
+    .lm-acts{display:flex;gap:5px;justify-content:flex-end;}
+  </style>`;
+
+  doc.body.innerHTML=`
+  <div id="bowl-root">
+    <div id="bowl-bg-fill"></div>
+    <div id="bowl-fish"></div>
+    <div id="bubbles"></div>
+    <svg id="bowl-glass" viewBox="0 0 440 440" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <defs>
+        <radialGradient id="shL" cx="25%" cy="27%" r="33%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.07)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </radialGradient>
+        <radialGradient id="shR" cx="76%" cy="73%" r="22%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.032)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </radialGradient>
+        <linearGradient id="rimG" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.02)"/>
+          <stop offset="28%" stop-color="rgba(255,255,255,0.22)"/>
+          <stop offset="52%" stop-color="rgba(255,255,255,0.30)"/>
+          <stop offset="76%" stop-color="rgba(255,255,255,0.20)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0.02)"/>
+        </linearGradient>
+        <clipPath id="bClip"><ellipse cx="220" cy="238" rx="211" ry="194"/></clipPath>
+      </defs>
+      <ellipse cx="220" cy="238" rx="211" ry="194" fill="none" stroke="rgba(180,180,180,0.20)" stroke-width="2"/>
+      <ellipse cx="220" cy="238" rx="211" ry="194" fill="url(#shL)" clip-path="url(#bClip)"/>
+      <ellipse cx="220" cy="238" rx="211" ry="194" fill="url(#shR)" clip-path="url(#bClip)"/>
+      <ellipse cx="122" cy="140" rx="24" ry="70" fill="rgba(255,255,255,0.026)" transform="rotate(-22 122 140)"/>
+      <ellipse cx="220" cy="72" rx="152" ry="21" fill="rgba(12,12,12,0)" stroke="rgba(200,200,200,0.36)" stroke-width="2"/>
+      <ellipse cx="220" cy="72" rx="152" ry="21" fill="url(#rimG)" opacity="0.8"/>
+      <ellipse cx="220" cy="77" rx="134" ry="14" fill="rgba(0,0,0,0.22)" stroke="rgba(255,255,255,0.05)" stroke-width="0.6"/>
+      <path d="M 68,72 Q 64,78 68,90" stroke="rgba(255,255,255,0.18)" stroke-width="1.6" fill="none"/>
+      <path d="M 372,72 Q 376,78 372,90" stroke="rgba(255,255,255,0.18)" stroke-width="1.6" fill="none"/>
+      <text x="25" y="370" font-family="'Courier New',monospace" font-size="8.5" fill="rgba(85,85,85,0.28)" letter-spacing="4">~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~</text>
+      <ellipse cx="220" cy="428" rx="88" ry="8" fill="rgba(255,255,255,0.015)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+    </svg>
+    <div id="content">
+      <div class="clock paused" id="clock">
+        <span id="sm">00</span><span class="sep">:</span><span id="ss">00</span>
+      </div>
+      <div class="mode-lbl" id="mlbl">// stopwatch</div>
+      <div class="lap-tick" id="ltick"></div>
+      <div class="btns">
+        <button class="bb red" id="rbtn">[ rst ]</button>
+        <button class="bb bp" id="sbtn">[ start ]</button>
+        <button class="bb" id="lbtn" disabled>[ lap ]</button>
+      </div>
+    </div>
+    <button id="close-btn">✕</button>
+    <div id="lap-ovl">
+      <div class="lm">
+        <h3>// name this block</h3>
+        <p>duration: <span id="ldur">—</span></p>
+        <input type="text" id="linput" placeholder="subject / topic ..." maxlength="40"/>
+        <div class="lm-acts">
+          <button class="bb" id="lcancelbtn">[ cancel ]</button>
+          <button class="bb bp" id="lsavebtn">[ save ]</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  const KEY='fishbowl_state';
+  const pad=n=>String(Math.floor(Math.abs(n))).padStart(2,'0');
+  const fmt=s=>`${pad(s/60)}:${pad(s%60)}`;
+  let lT=0,lRun=false,lMode='stopwatch',lLs=0,lLaps=[];
+  let sAt=null,pend=null;
+  function getState(){try{return JSON.parse(localStorage.getItem(KEY)||'null');}catch{return null;}}
+  function setState(s){try{localStorage.setItem(KEY,JSON.stringify(s));}catch{}}
+  function getCurT(){if(!lRun||sAt===null)return lT;const el=(pw.performance.now()-sAt)/1000;return lMode==='countdown'?Math.max(0,lT-el):lT+el;}
+  function updDisp(){
+    const t=Math.floor(getCurT());
+    doc.getElementById('sm').textContent=pad(t/60);
+    doc.getElementById('ss').textContent=pad(t%60);
+    doc.getElementById('clock').classList.toggle('paused',!lRun);
+    doc.getElementById('mlbl').textContent=`// ${lMode}`;
+    const lt=doc.getElementById('ltick');
+    if(lRun){const e=getCurT()-lLs;lt.innerHTML=`lap ${lLaps.length+1} <span class="t">${fmt(e)}</span>`;}
+    else lt.textContent='';
+    doc.getElementById('sbtn').textContent=lRun?'[ pause ]':'[ start ]';
+    doc.getElementById('lbtn').disabled=!lRun;
+  }
+  function pushUp(){setState({t:getCurT(),run:lRun,mode:lMode,ls:lLs,laps:lLaps,startWall:lRun?Date.now()-(pw.performance.now()-sAt):null});}
+  function syncDown(){
+    const st=getState();if(!st)return;
+    const wasRun=lRun;
+    if(st.run!==lRun||Math.abs(st.t-lT)>1.5){
+      lT=st.t;lRun=st.run;lMode=st.mode||'stopwatch';lLs=st.ls||0;lLaps=st.laps||[];
+      if(lRun&&!wasRun){sAt=pw.performance.now()-(Date.now()-st.startWall);}
+      else if(!lRun){sAt=null;}
+    }
+    updDisp();
+  }
+  doc.getElementById('sbtn').onclick=()=>{if(lRun){lT=getCurT();sAt=null;lRun=false;}else{sAt=pw.performance.now();lRun=true;}pushUp();updDisp();};
+  doc.getElementById('rbtn').onclick=()=>{lT=0;lRun=false;sAt=null;lLs=0;lLaps=[];pend=null;doc.getElementById('lap-ovl').style.display='none';pushUp();updDisp();};
+  doc.getElementById('lbtn').onclick=()=>{if(!lRun)return;const now=getCurT();const dur=now-lLs;if(dur<1)return;pend={start:lLs,end:now,duration:dur};doc.getElementById('ldur').textContent=fmt(dur);doc.getElementById('linput').value='';doc.getElementById('lap-ovl').style.display='flex';setTimeout(()=>doc.getElementById('linput').focus(),30);};
+  doc.getElementById('lsavebtn').onclick=()=>{const name=doc.getElementById('linput').value.trim()||`block ${lLaps.length+1}`;lLaps.push({...pend,name,ci:lLaps.length%6});lLs=pend.end;pend=null;doc.getElementById('lap-ovl').style.display='none';pushUp();updDisp();};
+  doc.getElementById('lcancelbtn').onclick=()=>{pend=null;doc.getElementById('lap-ovl').style.display='none';};
+  doc.getElementById('linput').addEventListener('keydown',e=>{if(e.key==='Enter')doc.getElementById('lsavebtn').click();if(e.key==='Escape')doc.getElementById('lcancelbtn').click();});
+  doc.getElementById('close-btn').onclick=()=>pw.close();
+
+  const st=getState();
+  if(st){lT=st.t??0;lRun=st.run??false;lMode=st.mode??'stopwatch';lLs=st.ls??0;lLaps=st.laps??[];if(lRun&&st.startWall){sAt=pw.performance.now()-(Date.now()-st.startWall);}}
+  updDisp();
+  setInterval(()=>{if(lRun){if(lMode==='countdown'&&getCurT()<=0){lT=0;lRun=false;sAt=null;pushUp();updDisp();return;}updDisp();pushUp();}},250);
+  setInterval(syncDown,1000);
+
+  const bowlFish=[
+    {l:[`><(((º>`,`><((( >`],r:[`<º)))><`,`< )))><`]},
+    {l:[`>°)))><`,`>°)))-`],r:[`<(((°<`,`-(((°<`]},
+    {l:[`>·(((º>`,`>=(((º>`],r:[`<º)))·<`,`<º)))-<`]},
+    {l:[`-º))))>`,`-°))))>`],r:[`<((((º-`,`<((((°-`]},
+    {l:[`»»»º>`,`»»»°>`],r:[`<º«««`,`<°«««`]},
+    {l:[`~·~·º>`,`~·~·°>`],r:[`<º·~·~`,`<°·~·~`]},
+    {l:[`===º>>>`,`===°>>>`],r:[`<<<º===`,`<<<°===`]},
+    {l:[`ø·ø·ø>`,`ø·ø·ø-`],r:[`<ø·ø·ø`,`-ø·ø·ø`]},
+    {l:[`*==º==>`,`*==°==>`],r:[`<==º==*`,`<==°==*`]},
+    {l:[`--·º)>`,`--·°)>`],r:[`<(º·--`,`<(°·--`]},
+  ];
+  const bents=[];let bframe=0;
+  function spawnBF(){
+    const sky=doc.getElementById('bowl-fish');
+    const spec=bowlFish[Math.floor(Math.random()*bowlFish.length)];
+    const fr=Math.random()>.5;const frames=fr?spec.r:spec.l;
+    const el=doc.createElement('div');el.className='bf';el.textContent=frames[0];
+    el.style.fontSize=`${(Math.random()*0.3+0.65).toFixed(2)}rem`;
+    el.style.opacity=(Math.random()*0.25+0.45).toFixed(2);
+    const yp=Math.random()*52+18;let xp=fr?112:-20;
+    el.style.top=yp+'%';el.style.left=xp+'%';sky.appendChild(el);
+    let fi=0;
+    const wig=setInterval(()=>{if(!el.isConnected){clearInterval(wig);return;}fi=(fi+1)%frames.length;el.textContent=frames[fi];},330+Math.random()*370);
+    return{el,xp,yp,speed:Math.random()*0.45+0.12,dir:fr?-1:1,wave:Math.random()*Math.PI*2,wAmp:Math.random()*1.4+0.5,wig};
+  }
+  for(let i=0;i<6;i++){const e=spawnBF();if(e){e.xp=Math.random()*70+8;e.el.style.left=e.xp+'%';bents.push(e);}}
+  function animBowl(){
+    bframe++;
+    if(bframe%110===0&&Math.random()>0.4){const e=spawnBF();if(e)bents.push(e);}
+    for(let i=bents.length-1;i>=0;i--){
+      const e=bents[i];if(!e||!e.el.isConnected){bents.splice(i,1);continue;}
+      e.xp+=e.speed*e.dir*0.07;
+      const yo=Math.sin(bframe*0.028+e.wave)*e.wAmp;
+      e.el.style.left=e.xp+'%';e.el.style.top=(e.yp+yo)+'%';
+      if((e.dir===-1&&e.xp<-24)||(e.dir===1&&e.xp>116)){clearInterval(e.wig);e.el.remove();bents.splice(i,1);}
+    }
+    pw.requestAnimationFrame(animBowl);
+  }
+  pw.requestAnimationFrame(animBowl);
+  const bc=doc.getElementById('bubbles');
+  [3,4,3,5,4,3,6,4,5,3].forEach((s,i)=>{
+    const b=doc.createElement('div');b.className='bubble';
+    b.style.width=s+'px';b.style.height=s+'px';
+    b.style.left=(22+Math.random()*56)+'%';b.style.bottom=(8+Math.random()*24)+'%';
+    b.style.animationDuration=(5+Math.random()*6)+'s';b.style.animationDelay=(i*0.7+Math.random()*3)+'s';
+    bc.appendChild(b);
+  });
+}
+// Poll bowl state changes while open
+setInterval(()=>{if(pipWin&&!pipWin.closed)pullBowlState();},1000);
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)updClock();});
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('lap-modal').style.display!=='none'){if(e.key==='Enter')saveLap();if(e.key==='Escape')cancelLap();return;}
+  if(document.getElementById('sess-modal').style.display!=='none'){if(e.key==='Escape')closeSM();return;}
+  switch(e.key){
+    case ' ':e.preventDefault();toggleTimer();break;
+    case 'l':case 'L':triggerLap();break;
+    case 'r':case 'R':resetTimer();break;
+    case 'f':case 'F':toggleFS();break;
+    case 'p':case 'P':toggleBowl();break;
+    case 'ArrowUp':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}S.t=Math.max(0,S.t+60);if(S.run)S.startedAt=performance.now();updClock();pushBowlState();break;
+    case 'ArrowDown':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}S.t=Math.max(0,S.t-60);if(S.run)S.startedAt=performance.now();updClock();pushBowlState();break;
+  }
 });
+document.getElementById('linput').addEventListener('keydown',e=>{if(e.key==='Enter')saveLap();});
+
+// ── Fullscreen / WakeLock ─────────────────────────────────────────────────────
+function toggleFS(){
+  if(!document.fullscreenElement){document.documentElement.requestFullscreen().catch(()=>{});document.body.classList.add('fs');}
+  else{document.exitFullscreen().catch(()=>{});document.body.classList.remove('fs');}
+}
+async function reqWL(){try{if('wakeLock' in navigator)wl=await navigator.wakeLock.request('screen');}catch{}}
+function relWL(){if(wl){wl.release();wl=null;}}
+
+// ── ASCII fish background ─────────────────────────────────────────────────────
+const skyFish=[
+  {l:[`><(((º>`,`><((( >`],r:[`<º)))><`,`< )))><`],size:'1rem',w:4},
+  {l:[`>°)))><`,`>°)))-`],r:[`<(((°<`,`-(((°<`],size:'0.95rem',w:3},
+  {l:[` *-*-*\n* º  *-\n *-*-*`],r:[`  *-*-*\n-*  º *\n  *-*-*`],size:'0.85rem',w:2},
+  {l:[`  º\\/\\/\\/\\--`,`  º/\\/\\/\\--`],r:[`--/\\/\\/\\/º`,`--\\/\\/\\º`],size:'0.85rem',w:2},
+  {l:[`>·(º>`,`>=(º>`],r:[`<º)·<`,`<º)=<`],size:'1rem',w:3},
+  {l:[` o)>\n o)>  o)>`],r:[`<(o \n<(o  <(o`],size:'0.85rem',w:2},
+  {l:[`     /\n___/  º )----<\n   \\____/`],r:[`     \\\n>----( º  \\___\n    \\____/`],size:'0.8rem',w:1},
+  {l:[`  ___\n /  \\__\n|  º  ==>`],r:[`    ___\n  __/  \\\n<==  º  |`],size:'0.85rem',w:1},
+];
+const pool=[],entities=[];
+skyFish.forEach((f,i)=>{for(let w=0;w<f.w;w++)pool.push(i);});
+function spawnFish(){
+  const el=document.createElement('div');el.className='ascii-entity';
+  const fromRight=Math.random()>.5;
+  const spec=skyFish[pool[Math.floor(Math.random()*pool.length)]];
+  const frames=fromRight?spec.r:spec.l;
+  el.textContent=frames[0];el.style.fontSize=spec.size;
+  el.style.opacity=(Math.random()*.3+0.35).toFixed(2);
+  const y=Math.random()*88+2;const speed=Math.random()*.9+0.25;let x=fromRight?110:-20;
+  el.style.top=y+'vh';el.style.left=x+'vw';
+  document.getElementById('ascii-sky').appendChild(el);
+  let fi=0;
+  const wig=setInterval(()=>{if(!el.isConnected){clearInterval(wig);return;}fi=(fi+1)%frames.length;el.textContent=frames[fi];},350+Math.random()*400);
+  return{el,x,y,speed,dir:fromRight?-1:1,wave:Math.random()*Math.PI*2,waveAmp:Math.random()*1.2+0.4,wig};
+}
+for(let i=0;i<12;i++){const e=spawnFish();e.x=Math.random()*100;entities.push(e);}
+let frame=0;
+(function anim(){
+  frame++;
+  if(frame%110===0&&Math.random()>.35)entities.push(spawnFish());
+  if(frame%150===0&&Math.random()>.45)entities.push(spawnFish());
+  for(let i=entities.length-1;i>=0;i--){
+    const e=entities[i];e.x+=e.speed*e.dir*0.1;
+    const yo=Math.sin(frame*0.025+e.wave)*e.waveAmp;
+    e.el.style.left=e.x+'vw';e.el.style.top=(e.y+yo)+'vh';
+    if((e.dir===-1&&e.x<-25)||(e.dir===1&&e.x>118)){clearInterval(e.wig);e.el.remove();entities.splice(i,1);}
+  }
+  requestAnimationFrame(anim);
+})();
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText=`position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);color:#ccc;font-family:'Times New Roman',Times,serif;font-size:0.62rem;letter-spacing:0.08em;padding:8px 18px;z-index:200;opacity:0;transition:opacity 0.3s;`;document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._tid);t._tid=setTimeout(()=>{t.style.opacity='0';},3500);
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('beforeunload',()=>{autosave();pushBowlState();});
 (function init(){
-  const st = getState();
-  if(st){
-    lT=st.t??0; lRun=st.run??false; lMode=st.mode??'stopwatch';
-    lLs=st.ls??0; lLaps=st.laps??[];
-    if(lRun && st.startWall){ sAt=performance.now()-(Date.now()-st.startWall); }
+  const saved=loadAutosave();
+  if(saved){
+    S.t=saved.t??0;S.ls=saved.ls??0;S.laps=saved.laps??[];S.mode=saved.mode??'stopwatch';S.run=false;
+    document.getElementById('btn-sw').classList.toggle('on',S.mode==='stopwatch');
+    document.getElementById('btn-cd').classList.toggle('on',S.mode==='countdown');
+    if(S.t>0)document.getElementById('lbtn').disabled=false;
+    showToast(saved.wasRunning?`> session restored (was running at ${fmt(saved.t)}) — press start to continue`:`> session restored at ${fmt(saved.t)}`);
   }
-  updDisp();
+  pushBowlState();updClock();renderLaps();renderSess();
 })();
 </script>
 </body>
