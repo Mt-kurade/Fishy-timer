@@ -15,13 +15,19 @@
   body{background:var(--bg);color:var(--text);font-family:'Times New Roman',Times,serif;min-height:100vh;overflow-x:hidden;}
   #ascii-sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
   .ascii-entity{position:absolute;color:rgba(210,210,210,0.6);font-family:'Courier New',Courier,monospace;white-space:pre;line-height:1.2;pointer-events:none;user-select:none;}
-  .app{position:relative;z-index:1;display:grid;grid-template-columns:1fr 310px;min-height:100vh;}
+
+  /* ── Layout ── */
+  .app{position:relative;z-index:1;display:grid;grid-template-columns:1fr 340px;min-height:100vh;}
   .main{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;gap:2rem;}
+
+  /* ── Mode row ── */
   .mode-row{display:flex;align-items:center;gap:4px;font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim2);}
   .mode-sep{color:var(--dim2);}
   .mbtn{background:none;border:none;font-family:'Times New Roman',Times,serif;font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);cursor:pointer;padding:2px 6px;transition:color 0.12s;}
   .mbtn:hover{color:var(--acc);}
   .mbtn.on{color:var(--text);text-decoration:underline;text-underline-offset:4px;}
+
+  /* ── Clock ── */
   .clock-wrap{text-align:center;}
   .clock{font-family:'Times New Roman',Times,serif;font-size:clamp(4.5rem,16vw,11rem);font-weight:700;letter-spacing:-0.02em;color:var(--text);line-height:1;}
   .clock .sep{color:var(--dim);animation:blink 1s step-end infinite;}
@@ -29,6 +35,8 @@
   @keyframes blink{50%{opacity:0.12;}}
   .ticker{font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-top:0.65rem;height:15px;}
   .ticker .t{color:var(--acc);}
+
+  /* ── Controls ── */
   .controls{display:flex;gap:8px;align-items:center;}
   .btn{background:none;border:1px solid var(--b1);color:var(--dim);font-family:'Times New Roman',Times,serif;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;padding:7px 16px;cursor:pointer;transition:all 0.12s;}
   .btn:hover{border-color:var(--b2);color:var(--acc);}
@@ -41,9 +49,21 @@
   .btn.popout{border-color:var(--b2);color:var(--acc2);font-family:'Courier New',monospace;font-size:0.6rem;}
   .btn.popout:hover{border-color:var(--acc);color:var(--text);}
   .btn.popout.active{border-color:var(--acc);color:var(--acc);}
+
   .tips{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:0.56rem;color:var(--dim2);letter-spacing:0.08em;text-transform:uppercase;}
   .k{border:1px solid var(--dim2);padding:1px 4px;font-size:0.53rem;}
+
+  /* ── Sidebar ── */
   .side{border-left:1px solid var(--b1);background:var(--s1);display:flex;flex-direction:column;overflow:hidden;font-size:0.6rem;}
+
+  /* Tab switcher */
+  .side-tabs{display:flex;border-bottom:1px solid var(--b1);flex-shrink:0;}
+  .side-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--dim2);font-family:'Times New Roman',Times,serif;font-size:0.54rem;letter-spacing:0.12em;text-transform:uppercase;padding:0.65rem 0.5rem;cursor:pointer;transition:all 0.12s;}
+  .side-tab:hover{color:var(--acc);}
+  .side-tab.on{color:var(--text);border-bottom-color:var(--acc2);}
+
+  /* Laps panel */
+  #panel-laps{display:flex;flex-direction:column;flex:1;overflow:hidden;}
   .phd{padding:0.9rem 1rem;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;font-size:0.56rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);}
   .phd button{background:none;border:none;font-family:'Times New Roman',Times,serif;font-size:0.53rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim2);cursor:pointer;transition:color 0.12s;}
   .phd button:hover{color:var(--red);}
@@ -71,6 +91,71 @@
   .stot{font-size:0.6rem;font-weight:700;color:var(--acc);}
   .sdesc{font-size:0.52rem;color:var(--dim2);line-height:1.5;}
   .no-sess{font-size:0.54rem;color:var(--dim2);padding:0.5rem 0.3rem;letter-spacing:0.06em;}
+
+  /* ── Calendar panel ── */
+  #panel-cal{display:none;flex-direction:column;flex:1;overflow:hidden;}
+
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0.8rem;border-bottom:1px solid var(--b1);flex-shrink:0;}
+  .cal-nav-title{font-size:0.62rem;letter-spacing:0.1em;color:var(--text);}
+  .cal-nav-btns{display:flex;gap:4px;}
+  .cal-nav-btns button{background:none;border:1px solid var(--b1);color:var(--dim);font-family:'Times New Roman',serif;font-size:0.52rem;padding:3px 8px;cursor:pointer;transition:all 0.12s;}
+  .cal-nav-btns button:hover{border-color:var(--b2);color:var(--acc);}
+  .cal-clear{background:none;border:none;color:var(--dim2);font-family:'Times New Roman',serif;font-size:0.5rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:color 0.12s;}
+  .cal-clear:hover{color:var(--red);}
+
+  /* Day view grid */
+  .cal-body{flex:1;overflow-y:auto;position:relative;}
+  .cal-body::-webkit-scrollbar{width:2px;}
+  .cal-body::-webkit-scrollbar-thumb{background:var(--b1);}
+
+  .cal-grid{position:relative;min-height:100%;}
+  .cal-hour-row{display:flex;align-items:flex-start;min-height:44px;border-bottom:1px solid rgba(255,255,255,0.03);}
+  .cal-hour-lbl{width:38px;flex-shrink:0;font-size:0.45rem;color:var(--dim2);padding:3px 6px 0 4px;text-align:right;letter-spacing:0.04em;font-family:'Courier New',monospace;}
+  .cal-hour-lane{flex:1;position:relative;min-height:44px;}
+
+  /* Current time line */
+  .cal-now-line{position:absolute;left:0;right:0;height:1px;background:var(--red);z-index:3;pointer-events:none;}
+  .cal-now-dot{position:absolute;left:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:var(--red);}
+
+  /* Calendar event blocks — positioned inside the lane column only */
+  .cal-evt{
+    position:absolute;
+    left:2px; right:2px;
+    border-radius:2px;
+    padding:3px 6px;
+    font-size:0.5rem;
+    line-height:1.35;
+    overflow:hidden;
+    cursor:default;
+    z-index:2;
+    border-left:3px solid var(--evt-accent, #d0d0d0);
+    background:var(--evt-bg, rgba(255,255,255,0.08));
+    color:var(--evt-text, #f0f0f0);
+    /* Smooth height transitions for the live growing block */
+    transition:height 0.25s linear;
+  }
+  .cal-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;}
+  .cal-evt-time{color:var(--evt-accent,#d0d0d0);font-family:'Courier New',monospace;font-size:0.42rem;margin-top:1px;opacity:0.75;}
+  /* Gap / pause stripe */
+  .cal-gap{
+    position:absolute;left:2px;right:2px;
+    background:repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 2px,
+      transparent 2px,
+      transparent 8px
+    );
+    border-left:2px solid rgba(255,255,255,0.08);
+    border-radius:1px;
+    z-index:1;
+  }
+  /* The lane column — events are absolutely positioned inside this */
+  .cal-lane-col{position:relative;flex:1;overflow:hidden;}
+
+  .no-cal{color:var(--dim2);font-size:0.56rem;padding:1.2rem 0.8rem;line-height:2;letter-spacing:0.06em;}
+
+  /* ── Modals ── */
   .ovl{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:flex;align-items:center;justify-content:center;}
   .modal{background:#0e0e0e;border:1px solid var(--b2);padding:1.75rem 2rem;width:350px;}
   .modal h3{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text);margin-bottom:0.5rem;}
@@ -82,6 +167,7 @@
   .macts{display:flex;gap:7px;justify-content:flex-end;}
   .modal.wide{width:460px;max-width:94vw;max-height:80vh;overflow-y:auto;}
   .sm-laps{margin-top:0.9rem;display:flex;flex-direction:column;gap:4px;}
+
   body.fs .side{display:none;}
   body.fs .app{grid-template-columns:1fr;}
   body.fs .tips{display:none;}
@@ -108,7 +194,7 @@
       <button class="btn lap-b" id="lbtn" onclick="triggerLap()" disabled>[ lap ]</button>
     </div>
     <div class="controls" style="margin-top:-0.5rem;">
-      <button class="btn popout" id="popout-btn" onclick="toggleBowl()">&gt;º)&gt; pop-out fishbowl</button>
+      <button class="btn popout" id="popout-btn" onclick="toggleBowl()">&gt;º)&gt; pop-out timer</button>
     </div>
     <div class="tips">
       <span><span class="k">space</span> play/pause</span>
@@ -119,16 +205,45 @@
       <span><span class="k">P</span> pop-out</span>
     </div>
   </main>
+
   <aside class="side">
-    <div class="phd"><span>// current session</span><button onclick="clearLaps()">clear</button></div>
-    <div class="laps-list" id="laps-list">
-      <div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>
+    <!-- Tab switcher -->
+    <div class="side-tabs">
+      <button class="side-tab on" id="tab-laps" onclick="switchTab('laps')">// session</button>
+      <button class="side-tab" id="tab-cal"  onclick="switchTab('cal')">// calendar</button>
     </div>
-    <div class="shd"><span>// past sessions</span><button onclick="clearSessions()">clear all</button></div>
-    <div class="sess-list" id="sess-list"><div class="no-sess">&gt; no saved sessions</div></div>
+
+    <!-- Laps panel -->
+    <div id="panel-laps">
+      <div class="phd"><span>// current session</span><button onclick="clearLaps()">clear</button></div>
+      <div class="laps-list" id="laps-list">
+        <div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>
+      </div>
+      <div class="shd"><span>// past sessions</span><button onclick="clearSessions()">clear all</button></div>
+      <div class="sess-list" id="sess-list"><div class="no-sess">&gt; no saved sessions</div></div>
+    </div>
+
+    <!-- Calendar panel -->
+    <div id="panel-cal">
+      <div class="cal-nav">
+        <span class="cal-nav-title" id="cal-title">today</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="cal-clear" onclick="clearCalDay()">clear day</button>
+          <div class="cal-nav-btns">
+            <button onclick="calOffset(-1)">‹</button>
+            <button onclick="calOffset(0)">today</button>
+            <button onclick="calOffset(1)">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="cal-body" id="cal-body">
+        <div class="no-cal">&gt; no sessions recorded today.<br>&gt; start the timer to log time.</div>
+      </div>
+    </div>
   </aside>
 </div>
 
+<!-- lap naming modal -->
 <div class="ovl" id="lap-modal" style="display:none;">
   <div class="modal">
     <h3>// name this block</h3>
@@ -140,6 +255,7 @@
     </div>
   </div>
 </div>
+<!-- session view modal -->
 <div class="ovl" id="sess-modal" style="display:none;">
   <div class="modal wide">
     <h3 id="smtitle">// session</h3>
@@ -150,53 +266,377 @@
 </div>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CALENDAR DATA MODEL
+// Every timer event is recorded as a "segment" with a real wall-clock timestamp.
+// Segments are stored in localStorage under 'fishy_cal'.
+//
+// Segment types:
+//   { type:'start', wall, lapName }   — timer started (lapName = current lap label)
+//   { type:'pause', wall }            — timer paused
+//   { type:'lap',   wall, name }      — lap saved; ends previous lap, starts new one
+//   { type:'reset', wall }            — timer reset
+//
+// The calendar renders by replaying these events per day.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CAL_KEY = 'fishy_cal';
+let calDayOffset = 0;   // 0 = today, -1 = yesterday, +1 = tomorrow
+
+function calDayKey(offsetFromToday = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetFromToday);
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+function loadCalDay(key) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
+    return all[key] || [];
+  } catch { return []; }
+}
+
+function saveCalSegment(seg) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
+    const key = calDayKey(0);
+    if (!all[key]) all[key] = [];
+    all[key].push(seg);
+    // Keep at most 60 days
+    const keys = Object.keys(all).sort();
+    if (keys.length > 60) delete all[keys[0]];
+    localStorage.setItem(CAL_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+function clearCalDay() {
+  if (!confirm('clear all calendar data for this day?')) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
+    const key = calDayKey(calDayOffset);
+    delete all[key];
+    localStorage.setItem(CAL_KEY, JSON.stringify(all));
+  } catch {}
+  renderCal();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALENDAR RENDERING
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Colour palette — matches lap colours but as calendar accent colours
+const CAL_COLORS = [
+  { bg:'rgba(255,255,255,0.08)', accent:'#d0d0d0', text:'#f0f0f0' },
+  { bg:'rgba(255,255,255,0.06)', accent:'#aaaaaa', text:'#d8d8d8' },
+  { bg:'rgba(255,255,255,0.07)', accent:'#c0c0c0', text:'#e8e8e8' },
+  { bg:'rgba(255,255,255,0.05)', accent:'#909090', text:'#c8c8c8' },
+  { bg:'rgba(255,255,255,0.09)', accent:'#e0e0e0', text:'#f4f4f4' },
+  { bg:'rgba(255,255,255,0.06)', accent:'#b8b8b8', text:'#e0e0e0' },
+  { bg:'rgba(255,255,255,0.07)', accent:'#cecece', text:'#ececec' },
+  { bg:'rgba(255,255,255,0.05)', accent:'#989898', text:'#d0d0d0' },
+];
+
+function calOffset(delta) {
+  if (delta === 0) calDayOffset = 0;
+  else calDayOffset += delta;
+  calRenderState = null;
+  renderCal(true);
+}
+
+function fmtWallTime(ms) {
+  const d = new Date(ms);
+  const h = d.getHours(), m = d.getMinutes();
+  const ampm = h >= 12 ? 'pm' : 'am';
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function fmtDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60), rem = s % 60;
+  return rem ? `${m}m ${rem}s` : `${m}m`;
+}
+
+// ── Calendar constants ────────────────────────────────────────────────────────
+const PX_PER_HOUR = 64;
+const LBL_W = 40;   // px width of the hour label column
+
+// calRenderState tracks the current render so live updates don't rebuild DOM
+let calRenderState = null;
+let calLiveRafId = null;
+
+function renderCal(scrollToNow) {
+  const key = calDayKey(calDayOffset);
+  const segs = loadCalDay(key);
+
+  // Update title
+  const titleEl = document.getElementById('cal-title');
+  if (calDayOffset === 0) titleEl.textContent = 'today';
+  else if (calDayOffset === -1) titleEl.textContent = 'yesterday';
+  else {
+    const d = new Date(); d.setDate(d.getDate() + calDayOffset);
+    titleEl.textContent = d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+  }
+
+  const body = document.getElementById('cal-body');
+  if (!segs.length) {
+    body.innerHTML = '<div class="no-cal">&gt; no sessions recorded.<br>&gt; start the timer to log time.</div>';
+    calRenderState = null;
+    stopCalLive();
+    return;
+  }
+
+  const events = buildCalEvents(segs);
+
+  // Hour range
+  let minH = 8, maxH = 21;
+  events.forEach(ev => {
+    const sh = new Date(ev.startWall).getHours();
+    const eh = Math.ceil((ev.endWall - new Date(ev.startWall).setHours(0,0,0,0)) / 3600000);
+    minH = Math.min(minH, Math.max(0, sh - 1));
+    maxH = Math.max(maxH, Math.min(24, new Date(ev.endWall).getHours() + 2));
+  });
+
+  const totalH  = maxH - minH;
+  const totalPx = totalH * PX_PER_HOUR;
+
+  // ── Build the static skeleton (hour rows + label column) only on first render
+  //    or when the hour range changes. Events are separate DOM elements we update.
+  const stateKey = `${key}:${minH}:${maxH}`;
+  if (!calRenderState || calRenderState.key !== stateKey) {
+    let rowsHTML = '';
+    for (let h = minH; h < maxH; h++) {
+      const label = h===0?'12am':h<12?`${h}am`:h===12?'12pm':`${h-12}pm`;
+      rowsHTML += `<div style="display:flex;height:${PX_PER_HOUR}px;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <div style="width:${LBL_W}px;flex-shrink:0;font-size:0.45rem;color:var(--dim2);padding:3px 6px 0 4px;text-align:right;letter-spacing:0.04em;font-family:'Courier New',monospace;">${label}</div>
+        <div style="flex:1;border-left:1px solid rgba(255,255,255,0.04);"></div>
+      </div>`;
+    }
+    body.innerHTML = `
+      <div id="cal-grid-wrap" style="position:relative;height:${totalPx}px;">
+        ${rowsHTML}
+        <div id="cal-evt-layer" style="position:absolute;top:0;left:${LBL_W}px;right:0;bottom:0;pointer-events:none;"></div>
+        <div id="cal-now-layer" style="position:absolute;top:0;left:0;right:0;pointer-events:none;"></div>
+      </div>`;
+    calRenderState = { key: stateKey, minH, maxH, eventIds: new Set() };
+
+    // Scroll to first event minus 1 hour
+    if (events.length) {
+      const firstMins = (new Date(events[0].startWall).getHours() - minH - 1) * 60;
+      body.scrollTop = Math.max(0, (firstMins / 60) * PX_PER_HOUR);
+    }
+  }
+
+  // ── Update/create event blocks ────────────────────────────────────────────
+  const layer = document.getElementById('cal-evt-layer');
+  if (!layer) return;
+
+  // Track which event ids are still present
+  const activeIds = new Set();
+
+  events.forEach((ev, idx) => {
+    const id = `calev-${idx}`;
+    activeIds.add(id);
+
+    const col = CAL_COLORS[ev.colorIdx % CAL_COLORS.length];
+    const startMins = (new Date(ev.startWall).getHours() - minH) * 60 + new Date(ev.startWall).getMinutes();
+    const endMins   = (new Date(ev.endWall).getHours()   - minH) * 60 + new Date(ev.endWall).getMinutes() + new Date(ev.endWall).getSeconds() / 60;
+    const topPx     = (startMins / 60) * PX_PER_HOUR;
+    const heightPx  = Math.max(20, ((endMins - startMins) / 60) * PX_PER_HOUR);
+    const dur       = fmtDuration(ev.endWall - ev.startWall);
+    const timeStr   = `${fmtWallTime(ev.startWall)} – ${ev.live ? 'now' : fmtWallTime(ev.endWall)} · ${dur}`;
+
+    let el = document.getElementById(id);
+    if (!el) {
+      // Create new block
+      el = document.createElement('div');
+      el.id = id;
+      el.className = 'cal-evt';
+      el.style.setProperty('--evt-bg',     col.bg);
+      el.style.setProperty('--evt-accent', col.accent);
+      el.style.setProperty('--evt-text',   col.text);
+      el.innerHTML = `<div class="cal-evt-name" id="${id}-name"></div><div class="cal-evt-time" id="${id}-time"></div>`;
+      layer.appendChild(el);
+    }
+
+    // Update position and size (height grows smoothly via CSS transition)
+    el.style.position = 'absolute';
+    el.style.top      = topPx + 'px';
+    el.style.left     = '2px';
+    el.style.right    = '2px';
+    el.style.height   = heightPx + 'px';
+
+    // Update text only if changed
+    const nameEl = document.getElementById(`${id}-name`);
+    const timeEl = document.getElementById(`${id}-time`);
+    if (nameEl && nameEl.textContent !== ev.name) nameEl.textContent = ev.name;
+    if (timeEl && timeEl.textContent !== timeStr)  timeEl.textContent = timeStr;
+
+    // Pause gap
+    const gapId = `calgap-${idx}`;
+    if (ev.pauseEndWall && ev.pauseEndWall > ev.endWall) {
+      activeIds.add(gapId);
+      const gStartMins = endMins;
+      const gEndMins   = (new Date(ev.pauseEndWall).getHours() - minH) * 60 + new Date(ev.pauseEndWall).getMinutes();
+      const gTop    = (gStartMins / 60) * PX_PER_HOUR;
+      const gHeight = Math.max(4, ((gEndMins - gStartMins) / 60) * PX_PER_HOUR);
+      let gEl = document.getElementById(gapId);
+      if (!gEl) {
+        gEl = document.createElement('div'); gEl.id = gapId; gEl.className = 'cal-gap';
+        layer.appendChild(gEl);
+      }
+      gEl.style.position = 'absolute';
+      gEl.style.top    = gTop + 'px';
+      gEl.style.height = gHeight + 'px';
+      gEl.style.left   = '2px'; gEl.style.right = '2px';
+    }
+  });
+
+  // Remove stale blocks
+  Array.from(layer.children).forEach(ch => {
+    if (!activeIds.has(ch.id)) ch.remove();
+  });
+
+  // ── Current time line ─────────────────────────────────────────────────────
+  const nowLayer = document.getElementById('cal-now-layer');
+  if (nowLayer && calDayOffset === 0) {
+    const now = new Date();
+    const nowMins = (now.getHours() - minH) * 60 + now.getMinutes() + now.getSeconds() / 60;
+    if (nowMins >= 0 && nowMins <= totalH * 60) {
+      const nowTop = (nowMins / 60) * PX_PER_HOUR;
+      nowLayer.innerHTML = `<div class="cal-now-line" style="top:${nowTop}px;left:${LBL_W}px;">
+        <div class="cal-now-dot"></div></div>`;
+    }
+  }
+}
+
+// ── Live update: when timer is running and calendar is visible, update every second
+let calLiveInterval = null;
+function startCalLive() {
+  if (calLiveInterval) return;
+  calLiveInterval = setInterval(() => {
+    if (document.getElementById('panel-cal').style.display === 'flex') renderCal();
+  }, 1000);
+}
+function stopCalLive() {
+  if (calLiveInterval) { clearInterval(calLiveInterval); calLiveInterval = null; }
+}
+
+// Replay segments into calendar event blocks
+function buildCalEvents(segs) {
+  const events = [];
+  let currentStart = null;   // wall ms
+  let currentLapName = 'study block';
+  let colorIdx = 0;
+
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (s.type === 'start') {
+      currentStart = s.wall;
+      currentLapName = s.lapName || 'study block';
+    } else if ((s.type === 'pause' || s.type === 'lap' || s.type === 'reset') && currentStart !== null) {
+      // Close the current event
+      const ev = {
+        name: currentLapName,
+        startWall: currentStart,
+        endWall: s.wall,
+        colorIdx,
+        pauseEndWall: null,
+      };
+      // If paused, find when it resumes to draw the gap stripe
+      if (s.type === 'pause') {
+        for (let j = i + 1; j < segs.length; j++) {
+          if (segs[j].type === 'start') {
+            ev.pauseEndWall = segs[j].wall;
+            break;
+          }
+        }
+      }
+      events.push(ev);
+      currentStart = null;
+
+      if (s.type === 'lap') {
+        // New lap starts immediately (same wall time as the lap event)
+        currentStart = s.wall;
+        currentLapName = s.name || `block ${events.length + 1}`;
+        colorIdx++;
+      } else if (s.type === 'reset') {
+        colorIdx++;
+        currentStart = null;
+      }
+    }
+  }
+
+  // If timer is currently running, show a live growing in-progress block
+  if (currentStart !== null && S.run) {
+    events.push({
+      name: currentLapName,
+      startWall: currentStart,
+      endWall: Date.now(),   // always current — re-evaluated each render
+      colorIdx,
+      pauseEndWall: null,
+      live: true,            // signals this block should keep growing
+    });
+  }
+
+  return events;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIDE-TAB SWITCHING
+// ─────────────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('panel-laps').style.display = tab === 'laps' ? 'flex' : 'none';
+  document.getElementById('panel-cal').style.display  = tab === 'cal'  ? 'flex' : 'none';
+  document.getElementById('tab-laps').classList.toggle('on', tab === 'laps');
+  document.getElementById('tab-cal').classList.toggle('on',  tab === 'cal');
+  if (tab === 'cal') {
+    calRenderState = null; // force full rebuild when switching to cal
+    renderCal(true);
+    if (S.run) startCalLive();
+  } else {
+    stopCalLive();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CORE TIMER
+// ─────────────────────────────────────────────────────────────────────────────
 const LC=['#aaa','#888','#ccc','#666','#bbb','#999','#ddd','#777'];
 let S={t:0,run:false,mode:'stopwatch',ls:0,laps:[],pend:null,startedAt:null};
 let iv=null,wl=null,pipWin=null;
 const BOWL_STATE_KEY='fishbowl_state';
 const AUTOSAVE_KEY='study_autosave';
 
-// ── Bowl state sync ──────────────────────────────────────────────────────────
-// Main page is the single source of truth.
-// pushBowlState() writes current state every tick so the popup can read it.
-// processCmd() reads commands the popup sends (start/pause/reset/lap).
+// Current lap name (updated when lap is saved)
+let currentLapName = 'study block';
 
+// ── Bowl state sync ──────────────────────────────────────────────────────────
 const CMD_KEY = 'fishbowl_cmd';
 let lastCmdTs = 0;
 
 function pushBowlState(){
   try{
     localStorage.setItem(BOWL_STATE_KEY, JSON.stringify({
-      t:      getCurrentT(),
-      run:    S.run,
-      mode:   S.mode,
-      ls:     S.ls,
-      laps:   S.laps,
-      // startWall: absolute wall-clock ms when timer was started.
-      // Popup derives exact elapsed time from this — no drift.
+      t: getCurrentT(), run: S.run, mode: S.mode, ls: S.ls, laps: S.laps,
       startWall: (S.run && S.startedAt !== null)
-        ? Date.now() - (performance.now() - S.startedAt)
-        : null
+        ? Date.now() - (performance.now() - S.startedAt) : null
     }));
   }catch{}
 }
-
-// No longer needed (popup doesn't write state back), kept as no-op for safety
-function pullBowlState(){}
 
 function processCmd(){
   try{
     const raw = localStorage.getItem(CMD_KEY); if(!raw) return;
     const c = JSON.parse(raw);
-    if(!c || c.ts <= lastCmdTs) return;   // already handled
+    if(!c || c.ts <= lastCmdTs) return;
     lastCmdTs = c.ts;
     switch(c.cmd){
-      case 'start': if(!S.run) play();   break;
-      case 'pause': if(S.run)  pause();  break;
-      case 'reset': resetTimer();        break;
+      case 'start': if(!S.run) play();  break;
+      case 'pause': if(S.run)  pause(); break;
+      case 'reset': resetTimer();       break;
       case 'lap':
         if(!S.run || !c.payload) break;
-        // payload already has {start, end, duration, name}
         const p = c.payload;
         S.laps.push({...p, ci: S.laps.length % LC.length});
         S.ls = p.end;
@@ -205,11 +645,9 @@ function processCmd(){
     }
   }catch{}
 }
-
-// Poll for commands from popup every 200ms
 setInterval(processCmd, 200);
 
-// ── Autosave ─────────────────────────────────────────────────────────────────
+// ── Autosave ──────────────────────────────────────────────────────────────────
 function todayStr(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
 function autosave(){
   if(S.t<1&&!S.laps.length)return;
@@ -239,6 +677,8 @@ function updClock(){
   const tk=document.getElementById('ticker');
   if(S.run){const e=getCurrentT()-S.ls;tk.innerHTML=`lap ${S.laps.length+1} &nbsp;<span class="t">${fmt(e)}</span>`;}
   else tk.textContent='';
+  // Keep in-progress calendar block fresh
+  if(document.getElementById('panel-cal').style.display==='flex') renderCal();
 }
 function tick(){
   if(!S.run)return;
@@ -247,28 +687,40 @@ function tick(){
   if(Math.round(getCurrentT()*2)%10===0)autosave();
 }
 
-// ── Play/Pause/Reset ──────────────────────────────────────────────────────────
+// ── Play / Pause / Reset ──────────────────────────────────────────────────────
 function play(){
-  if(S.run)return; S.run=true; S.startedAt=performance.now();
+  if(S.run)return;
+  S.run=true; S.startedAt=performance.now();
   iv=setInterval(tick,250);
   document.getElementById('sbtn').textContent='[ pause ]';
   document.getElementById('lbtn').disabled=false;
+  // Record start event with current lap name
+  saveCalSegment({type:'start', wall:Date.now(), lapName: currentLapName});
+  startCalLive();
   reqWL(); updClock(); pushBowlState();
 }
 function pause(){
   if(!S.run&&S.startedAt===null)return;
-  S.t=getCurrentT();S.startedAt=null;S.run=false;
-  clearInterval(iv);iv=null;
+  S.t=getCurrentT(); S.startedAt=null; S.run=false;
+  clearInterval(iv); iv=null;
   document.getElementById('sbtn').textContent='[ start ]';
-  relWL();autosave();updClock();pushBowlState();
+  // Record pause event
+  saveCalSegment({type:'pause', wall:Date.now()});
+  stopCalLive();
+  relWL(); autosave(); updClock(); pushBowlState();
 }
 function toggleTimer(){S.run?pause():play();}
+
 function resetTimer(){
   if(S.laps.length)saveSess(); pause();
+  // Record reset
+  saveCalSegment({type:'reset', wall:Date.now()});
+  stopCalLive();
   S.t=0;S.laps=[];S.ls=0;S.pend=null;S.startedAt=null;
+  currentLapName='study block';
   document.getElementById('lbtn').disabled=true;
   document.getElementById('lap-modal').style.display='none';
-  clearAutosave();updClock();renderLaps();pushBowlState();
+  clearAutosave(); updClock(); renderLaps(); pushBowlState();
 }
 function setMode(m){
   S.mode=m;
@@ -289,9 +741,14 @@ function triggerLap(){
 function saveLap(){
   const name=document.getElementById('linput').value.trim()||`block ${S.laps.length+1}`;
   S.laps.push({...S.pend,name,ci:S.laps.length%LC.length});
-  S.ls=S.pend.end;S.pend=null;
+  S.ls=S.pend.end; S.pend=null;
   document.getElementById('lap-modal').style.display='none';
-  autosave();renderLaps();pushBowlState();
+  // Record lap event — ends current block, next start will begin new one
+  saveCalSegment({type:'lap', wall:Date.now(), name});
+  currentLapName = `block ${S.laps.length + 1}`;
+  // Immediately record the new block starting
+  saveCalSegment({type:'start', wall:Date.now(), lapName: currentLapName});
+  autosave(); renderLaps(); pushBowlState();
 }
 function cancelLap(){S.pend=null;document.getElementById('lap-modal').style.display='none';}
 function clearLaps(){
@@ -327,255 +784,176 @@ function viewSess(i){
 }
 function closeSM(){document.getElementById('sess-modal').style.display='none';}
 
-// ── Document Picture-in-Picture bowl ─────────────────────────────────────────
-// Uses the Document PiP API — always on top, no rectangular chrome, position is preserved by browser
-const BOWL_W=440, BOWL_H=440;
+// ── Document PiP / popup ──────────────────────────────────────────────────────
+const BOWL_W=480, BOWL_H=200;
 
 function toggleBowl(){
   if(pipWin&&!pipWin.closed){pipWin.close();return;}
   openBowl();
 }
-
 async function openBowl(){
-  // Prefer Document Picture-in-Picture (Chrome 116+) — true shaped always-on-top window
   if('documentPictureInPicture' in window){
     try{
       pushBowlState();
-      pipWin=await documentPictureInPicture.requestWindow({width:BOWL_W,height:BOWL_H});
+      pipWin=await documentPictureInPicture.requestWindow({width:480,height:200});
       buildBowlInPip(pipWin);
       pipWin.addEventListener('pagehide',()=>{
         pipWin=null;
         document.getElementById('popout-btn').classList.remove('active');
-        document.getElementById('popout-btn').textContent='>º)> pop-out fishbowl';
-        pullBowlState();
+        document.getElementById('popout-btn').textContent='>º)> pop-out timer';
       });
       document.getElementById('popout-btn').classList.add('active');
-      document.getElementById('popout-btn').textContent='>º)> bowl is open · click to close';
+      document.getElementById('popout-btn').textContent='>º)> timer open · click to close';
       return;
-    }catch(e){console.warn('PiP failed, falling back',e);}
+    }catch(e){console.warn('PiP failed',e);}
   }
-  // Fallback: window.open
   openBowlWindow();
 }
-
 function openBowlWindow(){
   pushBowlState();
-  const sw=window.screen.availWidth, sh=window.screen.availHeight;
-  const left=Math.max(0,sw-BOWL_W-20), top=Math.max(0,sh-BOWL_H-60);
+  const sw=window.screen.availWidth,sh=window.screen.availHeight;
+  const left=Math.max(0,sw-BOWL_W-20),top=Math.max(0,sh-BOWL_H-60);
   const win=window.open('bowl-popup.html','FishyBowl',
-    `width=${BOWL_W},height=${BOWL_H},left=${left},top=${top},resizable=no,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`);
-  if(!win){showToast('> pop-ups blocked — please allow pop-ups for this site');return;}
+    `width=480,height=220,left=${left},top=${top},resizable=no,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`);
+  if(!win){showToast('> pop-ups blocked — allow pop-ups for this site');return;}
   pipWin=win;
   document.getElementById('popout-btn').classList.add('active');
-  document.getElementById('popout-btn').textContent='>º)> bowl is open · click to close';
+  document.getElementById('popout-btn').textContent='>º)> timer open · click to focus';
   const chk=setInterval(()=>{
     if(!pipWin||pipWin.closed){
       clearInterval(chk);pipWin=null;
       document.getElementById('popout-btn').classList.remove('active');
-      document.getElementById('popout-btn').textContent='>º)> pop-out fishbowl';
-      pullBowlState();
+      document.getElementById('popout-btn').textContent='>º)> pop-out timer';
     }
   },500);
 }
 
-// Inject the bowl UI directly into the PiP document
+// YouTube-style PiP content
 function buildBowlInPip(pw){
   const doc=pw.document;
-  doc.head.innerHTML=`
-  <meta charset="utf-8"/>
-  <style>
+  doc.head.innerHTML=`<meta charset="utf-8"/><style>
     *{box-sizing:border-box;margin:0;padding:0;}
-    html,body{width:100%;height:100%;overflow:hidden;background:transparent;}
-    #bowl-root{position:fixed;inset:0;clip-path:ellipse(48% 44% at 50% 54%);}
-    #bowl-bg-fill{position:absolute;inset:0;background:radial-gradient(ellipse 90% 86% at 50% 54%,#111 55%,#0a0a0a 80%,#060606 100%);}
-    #bowl-fish{position:absolute;inset:0;overflow:hidden;}
-    .bf{position:absolute;color:rgba(160,160,160,0.55);font-family:'Courier New',monospace;white-space:pre;line-height:1.2;pointer-events:none;user-select:none;font-size:0.72rem;}
-    #bubbles{position:absolute;inset:0;pointer-events:none;}
-    .bubble{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,0.10);animation:rise linear infinite;}
-    @keyframes rise{0%{transform:translateY(0) scale(1);opacity:0.45;}100%{transform:translateY(-130px) scale(1.8);opacity:0;}}
-    #bowl-glass{position:absolute;inset:0;pointer-events:none;z-index:4;}
-    #content{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:18px;gap:4px;}
-    .clock{font-family:'Times New Roman',Times,serif;font-size:5.2rem;font-weight:700;color:#f0f0f0;letter-spacing:-0.03em;line-height:1;text-align:center;text-shadow:0 0 28px rgba(255,255,255,0.12);position:relative;z-index:2;}
-    .clock .sep{color:#4a4a4a;animation:blink 1s step-end infinite;}
-    .clock.paused .sep{animation:none;opacity:0.22;}
-    @keyframes blink{50%{opacity:0.08;}}
-    .mode-lbl{font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:#3a3a3a;font-family:'Times New Roman',serif;position:relative;z-index:2;}
-    .lap-tick{font-family:'Courier New',monospace;font-size:0.58rem;letter-spacing:0.07em;color:#4a4a4a;min-height:14px;position:relative;z-index:2;}
-    .lap-tick .t{color:#777;}
-    .btns{display:flex;gap:8px;margin-top:10px;position:relative;z-index:2;}
-    .bb{background:none;border:1px solid rgba(255,255,255,0.14);color:#666;font-family:'Times New Roman',serif;font-size:0.62rem;letter-spacing:0.09em;text-transform:uppercase;padding:6px 14px;cursor:pointer;transition:all 0.12s;}
-    .bb:hover{border-color:rgba(255,255,255,0.35);color:#ccc;}
-    .bb.bp{border-color:rgba(255,255,255,0.22);color:#aaa;}
-    .bb:disabled{opacity:0.14;cursor:not-allowed;}
+    html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0a;font-family:'Times New Roman',Times,serif;}
+    #pip-root{position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;}
+    #pip-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px 4px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;}
+    #pip-bar .lbl{font-size:0.52rem;letter-spacing:0.18em;text-transform:uppercase;color:#383838;}
+    #pip-close{background:none;border:1px solid rgba(255,255,255,0.10);color:#444;font-family:'Courier New',monospace;font-size:0.58rem;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.12s;}
+    #pip-close:hover{border-color:#7a2020;color:#c04040;}
+    #pip-body{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;overflow:hidden;}
+    #pip-fish{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+    .pf{position:absolute;color:rgba(140,140,140,0.38);font-family:'Courier New',monospace;white-space:pre;line-height:1.2;pointer-events:none;user-select:none;font-size:0.68rem;}
+    .clock{font-family:'Times New Roman',Times,serif;font-size:4.6rem;font-weight:700;color:#f0f0f0;letter-spacing:-0.03em;line-height:1;text-align:center;text-shadow:0 0 40px rgba(255,255,255,0.08);position:relative;z-index:2;}
+    .clock .sep{color:#444;animation:blink 1s step-end infinite;}
+    .clock.paused .sep{animation:none;opacity:0.20;}
+    @keyframes blink{50%{opacity:0.07;}}
+    .lap-tick{font-family:'Courier New',monospace;font-size:0.55rem;letter-spacing:0.07em;color:#484848;min-height:13px;position:relative;z-index:2;}
+    .lap-tick .t{color:#707070;}
+    .btns{display:flex;gap:7px;margin-top:8px;position:relative;z-index:2;}
+    .bb{background:none;border:1px solid rgba(255,255,255,0.11);color:#585858;font-family:'Times New Roman',serif;font-size:0.6rem;letter-spacing:0.09em;text-transform:uppercase;padding:5px 13px;cursor:pointer;transition:all 0.12s;}
+    .bb:hover{border-color:rgba(255,255,255,0.32);color:#c0c0c0;}
+    .bb.bp{border-color:rgba(255,255,255,0.19);color:#989898;}
+    .bb:disabled{opacity:0.13;cursor:not-allowed;}
     .bb.red:hover{border-color:#7a2020;color:#c04040;}
-    #close-btn{position:absolute;top:16%;right:15%;z-index:10;background:rgba(10,10,10,0.6);border:1px solid rgba(255,255,255,0.14);color:#555;font-family:'Courier New',monospace;font-size:0.6rem;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.12s;line-height:1;}
-    #close-btn:hover{border-color:#8a2020;color:#c04040;}
-    #lap-ovl{position:absolute;inset:0;background:rgba(0,0,0,0.93);z-index:20;display:none;align-items:center;justify-content:center;}
-    .lm{background:#0c0c0c;border:1px solid rgba(255,255,255,0.15);padding:1rem 1.3rem;width:240px;}
-    .lm h3{font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:#bbb;margin-bottom:0.5rem;font-family:'Times New Roman',serif;}
-    .lm p{font-size:0.52rem;color:#555;margin-bottom:0.8rem;letter-spacing:0.06em;font-family:'Times New Roman',serif;}
+    #pip-foot{padding:4px 10px;border-top:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    #pip-foot .wl{font-family:'Courier New',monospace;font-size:0.42rem;color:rgba(60,60,60,0.7);letter-spacing:3px;}
+    #lap-ovl{position:absolute;inset:0;background:rgba(0,0,0,0.94);z-index:20;display:none;align-items:center;justify-content:center;}
+    .lm{background:#0e0e0e;border:1px solid rgba(255,255,255,0.14);padding:1rem 1.3rem;width:88%;}
+    .lm h3{font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:#bbb;margin-bottom:0.5rem;}
+    .lm p{font-size:0.5rem;color:#555;margin-bottom:0.7rem;letter-spacing:0.06em;}
     .lm p span{color:#888;}
-    .lm input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.14);color:#ccc;font-family:'Times New Roman',serif;font-size:0.58rem;padding:6px 8px;outline:none;margin-bottom:0.8rem;letter-spacing:0.04em;}
+    .lm input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.14);color:#ccc;font-family:'Times New Roman',serif;font-size:0.56rem;padding:5px 8px;outline:none;margin-bottom:0.7rem;letter-spacing:0.04em;}
     .lm input:focus{border-color:#666;}
-    .lm input::placeholder{color:#2a2a2a;}
+    .lm input::placeholder{color:#282828;}
     .lm-acts{display:flex;gap:5px;justify-content:flex-end;}
   </style>`;
-
-  doc.body.innerHTML=`
-  <div id="bowl-root">
-    <div id="bowl-bg-fill"></div>
-    <div id="bowl-fish"></div>
-    <div id="bubbles"></div>
-    <svg id="bowl-glass" viewBox="0 0 440 440" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-      <defs>
-        <radialGradient id="shL" cx="25%" cy="27%" r="33%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.07)"/>
-          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-        </radialGradient>
-        <radialGradient id="shR" cx="76%" cy="73%" r="22%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.032)"/>
-          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-        </radialGradient>
-        <linearGradient id="rimG" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.02)"/>
-          <stop offset="28%" stop-color="rgba(255,255,255,0.22)"/>
-          <stop offset="52%" stop-color="rgba(255,255,255,0.30)"/>
-          <stop offset="76%" stop-color="rgba(255,255,255,0.20)"/>
-          <stop offset="100%" stop-color="rgba(255,255,255,0.02)"/>
-        </linearGradient>
-        <clipPath id="bClip"><ellipse cx="220" cy="238" rx="211" ry="194"/></clipPath>
-      </defs>
-      <ellipse cx="220" cy="238" rx="211" ry="194" fill="none" stroke="rgba(180,180,180,0.20)" stroke-width="2"/>
-      <ellipse cx="220" cy="238" rx="211" ry="194" fill="url(#shL)" clip-path="url(#bClip)"/>
-      <ellipse cx="220" cy="238" rx="211" ry="194" fill="url(#shR)" clip-path="url(#bClip)"/>
-      <ellipse cx="122" cy="140" rx="24" ry="70" fill="rgba(255,255,255,0.026)" transform="rotate(-22 122 140)"/>
-      <ellipse cx="220" cy="72" rx="152" ry="21" fill="rgba(12,12,12,0)" stroke="rgba(200,200,200,0.36)" stroke-width="2"/>
-      <ellipse cx="220" cy="72" rx="152" ry="21" fill="url(#rimG)" opacity="0.8"/>
-      <ellipse cx="220" cy="77" rx="134" ry="14" fill="rgba(0,0,0,0.22)" stroke="rgba(255,255,255,0.05)" stroke-width="0.6"/>
-      <path d="M 68,72 Q 64,78 68,90" stroke="rgba(255,255,255,0.18)" stroke-width="1.6" fill="none"/>
-      <path d="M 372,72 Q 376,78 372,90" stroke="rgba(255,255,255,0.18)" stroke-width="1.6" fill="none"/>
-      <text x="25" y="370" font-family="'Courier New',monospace" font-size="8.5" fill="rgba(85,85,85,0.28)" letter-spacing="4">~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~</text>
-      <ellipse cx="220" cy="428" rx="88" ry="8" fill="rgba(255,255,255,0.015)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-    </svg>
-    <div id="content">
-      <div class="clock paused" id="clock">
-        <span id="sm">00</span><span class="sep">:</span><span id="ss">00</span>
-      </div>
-      <div class="mode-lbl" id="mlbl">// stopwatch</div>
+  doc.body.style.background='#0a0a0a';
+  doc.body.innerHTML=`<div id="pip-root">
+    <div id="pip-bar"><span class="lbl" id="mlbl">// stopwatch</span><button id="pip-close">✕</button></div>
+    <div id="pip-body">
+      <div id="pip-fish"></div>
+      <div class="clock paused" id="clock"><span id="sm">00</span><span class="sep">:</span><span id="ss">00</span></div>
       <div class="lap-tick" id="ltick"></div>
       <div class="btns">
         <button class="bb red" id="rbtn">[ rst ]</button>
         <button class="bb bp" id="sbtn">[ start ]</button>
         <button class="bb" id="lbtn" disabled>[ lap ]</button>
       </div>
-    </div>
-    <button id="close-btn">✕</button>
-    <div id="lap-ovl">
-      <div class="lm">
-        <h3>// name this block</h3>
-        <p>duration: <span id="ldur">—</span></p>
+      <div id="lap-ovl"><div class="lm">
+        <h3>// name this block</h3><p>duration: <span id="ldur">—</span></p>
         <input type="text" id="linput" placeholder="subject / topic ..." maxlength="40"/>
-        <div class="lm-acts">
-          <button class="bb" id="lcancelbtn">[ cancel ]</button>
-          <button class="bb bp" id="lsavebtn">[ save ]</button>
-        </div>
-      </div>
+        <div class="lm-acts"><button class="bb" id="lcancelbtn">[ cancel ]</button><button class="bb bp" id="lsavebtn">[ save ]</button></div>
+      </div></div>
     </div>
+    <div id="pip-foot"><span class="wl">~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~  ~</span></div>
   </div>`;
 
-  const KEY='fishbowl_state';
+  const STATE_KEY='fishbowl_state',CMD_KEY='fishbowl_cmd';
   const pad=n=>String(Math.floor(Math.abs(n))).padStart(2,'0');
   const fmt=s=>`${pad(s/60)}:${pad(s%60)}`;
-  let lT=0,lRun=false,lMode='stopwatch',lLs=0,lLaps=[];
-  let sAt=null,pend=null;
-  function getState(){try{return JSON.parse(localStorage.getItem(KEY)||'null');}catch{return null;}}
-  function setState(s){try{localStorage.setItem(KEY,JSON.stringify(s));}catch{}}
-  function getCurT(){if(!lRun||sAt===null)return lT;const el=(pw.performance.now()-sAt)/1000;return lMode==='countdown'?Math.max(0,lT-el):lT+el;}
-  function updDisp(){
-    const t=Math.floor(getCurT());
-    doc.getElementById('sm').textContent=pad(t/60);
-    doc.getElementById('ss').textContent=pad(t%60);
-    doc.getElementById('clock').classList.toggle('paused',!lRun);
-    doc.getElementById('mlbl').textContent=`// ${lMode}`;
+  let st={t:0,run:false,mode:'stopwatch',ls:0,laps:[],startWall:null},pend=null;
+  function curT(){if(!st.run||!st.startWall)return st.t;const el=(Date.now()-st.startWall)/1000;return st.mode==='countdown'?Math.max(0,st.t-el):st.t+el;}
+  function render(){
+    const t=Math.floor(curT());
+    doc.getElementById('sm').textContent=pad(t/60);doc.getElementById('ss').textContent=pad(t%60);
+    doc.getElementById('clock').classList.toggle('paused',!st.run);
+    doc.getElementById('mlbl').textContent=`// ${st.mode}`;
     const lt=doc.getElementById('ltick');
-    if(lRun){const e=getCurT()-lLs;lt.innerHTML=`lap ${lLaps.length+1} <span class="t">${fmt(e)}</span>`;}
-    else lt.textContent='';
-    doc.getElementById('sbtn').textContent=lRun?'[ pause ]':'[ start ]';
-    doc.getElementById('lbtn').disabled=!lRun;
+    if(st.run){const e=curT()-st.ls;lt.innerHTML=`lap ${st.laps.length+1} <span class="t">${fmt(e)}</span>`;}else lt.textContent='';
+    doc.getElementById('sbtn').textContent=st.run?'[ pause ]':'[ start ]';
+    doc.getElementById('lbtn').disabled=!st.run;
   }
-  function pushUp(){setState({t:getCurT(),run:lRun,mode:lMode,ls:lLs,laps:lLaps,startWall:lRun?Date.now()-(pw.performance.now()-sAt):null});}
-  function syncDown(){
-    const st=getState();if(!st)return;
-    const wasRun=lRun;
-    if(st.run!==lRun||Math.abs(st.t-lT)>1.5){
-      lT=st.t;lRun=st.run;lMode=st.mode||'stopwatch';lLs=st.ls||0;lLaps=st.laps||[];
-      if(lRun&&!wasRun){sAt=pw.performance.now()-(Date.now()-st.startWall);}
-      else if(!lRun){sAt=null;}
-    }
-    updDisp();
-  }
-  doc.getElementById('sbtn').onclick=()=>{if(lRun){lT=getCurT();sAt=null;lRun=false;}else{sAt=pw.performance.now();lRun=true;}pushUp();updDisp();};
-  doc.getElementById('rbtn').onclick=()=>{lT=0;lRun=false;sAt=null;lLs=0;lLaps=[];pend=null;doc.getElementById('lap-ovl').style.display='none';pushUp();updDisp();};
-  doc.getElementById('lbtn').onclick=()=>{if(!lRun)return;const now=getCurT();const dur=now-lLs;if(dur<1)return;pend={start:lLs,end:now,duration:dur};doc.getElementById('ldur').textContent=fmt(dur);doc.getElementById('linput').value='';doc.getElementById('lap-ovl').style.display='flex';setTimeout(()=>doc.getElementById('linput').focus(),30);};
-  doc.getElementById('lsavebtn').onclick=()=>{const name=doc.getElementById('linput').value.trim()||`block ${lLaps.length+1}`;lLaps.push({...pend,name,ci:lLaps.length%6});lLs=pend.end;pend=null;doc.getElementById('lap-ovl').style.display='none';pushUp();updDisp();};
+  function pollState(){try{const raw=localStorage.getItem(STATE_KEY);if(!raw)return;const p=JSON.parse(raw);st.t=p.t;st.run=p.run;st.mode=p.mode||'stopwatch';st.ls=p.ls||0;st.laps=p.laps||[];st.startWall=p.startWall;}catch{}render();}
+  setInterval(pollState,100);
+  function sendCmd(cmd,payload){try{localStorage.setItem(CMD_KEY,JSON.stringify({cmd,payload,ts:Date.now()}));}catch{}}
+  doc.getElementById('pip-close').onclick=()=>pw.close();
+  doc.getElementById('sbtn').onclick=()=>sendCmd(st.run?'pause':'start');
+  doc.getElementById('rbtn').onclick=()=>sendCmd('reset');
+  doc.getElementById('lbtn').onclick=()=>{
+    if(!st.run)return;const now=curT();const dur=now-st.ls;if(dur<1)return;
+    pend={start:st.ls,end:now,duration:dur};
+    doc.getElementById('ldur').textContent=fmt(dur);doc.getElementById('linput').value='';
+    doc.getElementById('lap-ovl').style.display='flex';setTimeout(()=>doc.getElementById('linput').focus(),30);
+  };
+  doc.getElementById('lsavebtn').onclick=()=>{
+    const name=doc.getElementById('linput').value.trim()||`block ${st.laps.length+1}`;
+    sendCmd('lap',{...pend,name});pend=null;doc.getElementById('lap-ovl').style.display='none';
+  };
   doc.getElementById('lcancelbtn').onclick=()=>{pend=null;doc.getElementById('lap-ovl').style.display='none';};
   doc.getElementById('linput').addEventListener('keydown',e=>{if(e.key==='Enter')doc.getElementById('lsavebtn').click();if(e.key==='Escape')doc.getElementById('lcancelbtn').click();});
-  doc.getElementById('close-btn').onclick=()=>pw.close();
 
-  const st=getState();
-  if(st){lT=st.t??0;lRun=st.run??false;lMode=st.mode??'stopwatch';lLs=st.ls??0;lLaps=st.laps??[];if(lRun&&st.startWall){sAt=pw.performance.now()-(Date.now()-st.startWall);}}
-  updDisp();
-  setInterval(()=>{if(lRun){if(lMode==='countdown'&&getCurT()<=0){lT=0;lRun=false;sAt=null;pushUp();updDisp();return;}updDisp();pushUp();}},250);
-  setInterval(syncDown,1000);
-
-  const bowlFish=[
+  const pipFish=[
     {l:[`><(((º>`,`><((( >`],r:[`<º)))><`,`< )))><`]},
     {l:[`>°)))><`,`>°)))-`],r:[`<(((°<`,`-(((°<`]},
     {l:[`>·(((º>`,`>=(((º>`],r:[`<º)))·<`,`<º)))-<`]},
-    {l:[`-º))))>`,`-°))))>`],r:[`<((((º-`,`<((((°-`]},
     {l:[`»»»º>`,`»»»°>`],r:[`<º«««`,`<°«««`]},
-    {l:[`~·~·º>`,`~·~·°>`],r:[`<º·~·~`,`<°·~·~`]},
     {l:[`===º>>>`,`===°>>>`],r:[`<<<º===`,`<<<°===`]},
-    {l:[`ø·ø·ø>`,`ø·ø·ø-`],r:[`<ø·ø·ø`,`-ø·ø·ø`]},
-    {l:[`*==º==>`,`*==°==>`],r:[`<==º==*`,`<==°==*`]},
-    {l:[`--·º)>`,`--·°)>`],r:[`<(º·--`,`<(°·--`]},
   ];
-  const bents=[];let bframe=0;
-  function spawnBF(){
-    const sky=doc.getElementById('bowl-fish');
-    const spec=bowlFish[Math.floor(Math.random()*bowlFish.length)];
+  const pfents=[];let pfframe=0;
+  function spawnPF(){
+    const sky=doc.getElementById('pip-fish');
+    const spec=pipFish[Math.floor(Math.random()*pipFish.length)];
     const fr=Math.random()>.5;const frames=fr?spec.r:spec.l;
-    const el=doc.createElement('div');el.className='bf';el.textContent=frames[0];
-    el.style.fontSize=`${(Math.random()*0.3+0.65).toFixed(2)}rem`;
-    el.style.opacity=(Math.random()*0.25+0.45).toFixed(2);
-    const yp=Math.random()*52+18;let xp=fr?112:-20;
+    const el=doc.createElement('div');el.className='pf';el.textContent=frames[0];
+    el.style.fontSize=`${(Math.random()*0.22+0.58).toFixed(2)}rem`;el.style.opacity=(Math.random()*0.18+0.28).toFixed(2);
+    const yp=Math.random()*78+8;let xp=fr?108:-16;
     el.style.top=yp+'%';el.style.left=xp+'%';sky.appendChild(el);
-    let fi=0;
-    const wig=setInterval(()=>{if(!el.isConnected){clearInterval(wig);return;}fi=(fi+1)%frames.length;el.textContent=frames[fi];},330+Math.random()*370);
-    return{el,xp,yp,speed:Math.random()*0.45+0.12,dir:fr?-1:1,wave:Math.random()*Math.PI*2,wAmp:Math.random()*1.4+0.5,wig};
+    let fi=0;const wig=setInterval(()=>{if(!el.isConnected){clearInterval(wig);return;}fi=(fi+1)%frames.length;el.textContent=frames[fi];},340+Math.random()*360);
+    return{el,xp,yp,speed:Math.random()*0.4+0.10,dir:fr?-1:1,wave:Math.random()*Math.PI*2,wAmp:Math.random()*1.2+0.4,wig};
   }
-  for(let i=0;i<6;i++){const e=spawnBF();if(e){e.xp=Math.random()*70+8;e.el.style.left=e.xp+'%';bents.push(e);}}
-  function animBowl(){
-    bframe++;
-    if(bframe%110===0&&Math.random()>0.4){const e=spawnBF();if(e)bents.push(e);}
-    for(let i=bents.length-1;i>=0;i--){
-      const e=bents[i];if(!e||!e.el.isConnected){bents.splice(i,1);continue;}
-      e.xp+=e.speed*e.dir*0.07;
-      const yo=Math.sin(bframe*0.028+e.wave)*e.wAmp;
+  for(let i=0;i<5;i++){const e=spawnPF();if(e){e.xp=Math.random()*72+8;e.el.style.left=e.xp+'%';pfents.push(e);}}
+  function animPip(){
+    pfframe++;
+    if(pfframe%120===0&&Math.random()>0.45){const e=spawnPF();if(e)pfents.push(e);}
+    for(let i=pfents.length-1;i>=0;i--){
+      const e=pfents[i];if(!e||!e.el.isConnected){pfents.splice(i,1);continue;}
+      e.xp+=e.speed*e.dir*0.07;const yo=Math.sin(pfframe*0.028+e.wave)*e.wAmp;
       e.el.style.left=e.xp+'%';e.el.style.top=(e.yp+yo)+'%';
-      if((e.dir===-1&&e.xp<-24)||(e.dir===1&&e.xp>116)){clearInterval(e.wig);e.el.remove();bents.splice(i,1);}
+      if((e.dir===-1&&e.xp<-20)||(e.dir===1&&e.xp>112)){clearInterval(e.wig);e.el.remove();pfents.splice(i,1);}
     }
-    pw.requestAnimationFrame(animBowl);
+    pw.requestAnimationFrame(animPip);
   }
-  pw.requestAnimationFrame(animBowl);
-  const bc=doc.getElementById('bubbles');
-  [3,4,3,5,4,3,6,4,5,3].forEach((s,i)=>{
-    const b=doc.createElement('div');b.className='bubble';
-    b.style.width=s+'px';b.style.height=s+'px';
-    b.style.left=(22+Math.random()*56)+'%';b.style.bottom=(8+Math.random()*24)+'%';
-    b.style.animationDuration=(5+Math.random()*6)+'s';b.style.animationDelay=(i*0.7+Math.random()*3)+'s';
-    bc.appendChild(b);
-  });
+  pw.requestAnimationFrame(animPip);
+  pollState();
 }
 
 // ── Keyboard ──────────────────────────────────────────────────────────────────
@@ -618,16 +996,13 @@ const pool=[],entities=[];
 skyFish.forEach((f,i)=>{for(let w=0;w<f.w;w++)pool.push(i);});
 function spawnFish(){
   const el=document.createElement('div');el.className='ascii-entity';
-  const fromRight=Math.random()>.5;
-  const spec=skyFish[pool[Math.floor(Math.random()*pool.length)]];
-  const frames=fromRight?spec.r:spec.l;
-  el.textContent=frames[0];el.style.fontSize=spec.size;
+  const fromRight=Math.random()>.5;const spec=skyFish[pool[Math.floor(Math.random()*pool.length)]];
+  const frames=fromRight?spec.r:spec.l;el.textContent=frames[0];el.style.fontSize=spec.size;
   el.style.opacity=(Math.random()*.3+0.35).toFixed(2);
   const y=Math.random()*88+2;const speed=Math.random()*.9+0.25;let x=fromRight?110:-20;
   el.style.top=y+'vh';el.style.left=x+'vw';
   document.getElementById('ascii-sky').appendChild(el);
-  let fi=0;
-  const wig=setInterval(()=>{if(!el.isConnected){clearInterval(wig);return;}fi=(fi+1)%frames.length;el.textContent=frames[fi];},350+Math.random()*400);
+  let fi=0;const wig=setInterval(()=>{if(!el.isConnected){clearInterval(wig);return;}fi=(fi+1)%frames.length;el.textContent=frames[fi];},350+Math.random()*400);
   return{el,x,y,speed,dir:fromRight?-1:1,wave:Math.random()*Math.PI*2,waveAmp:Math.random()*1.2+0.4,wig};
 }
 for(let i=0;i<12;i++){const e=spawnFish();e.x=Math.random()*100;entities.push(e);}
@@ -637,8 +1012,7 @@ let frame=0;
   if(frame%110===0&&Math.random()>.35)entities.push(spawnFish());
   if(frame%150===0&&Math.random()>.45)entities.push(spawnFish());
   for(let i=entities.length-1;i>=0;i--){
-    const e=entities[i];e.x+=e.speed*e.dir*0.1;
-    const yo=Math.sin(frame*0.025+e.wave)*e.waveAmp;
+    const e=entities[i];e.x+=e.speed*e.dir*0.1;const yo=Math.sin(frame*0.025+e.wave)*e.waveAmp;
     e.el.style.left=e.x+'vw';e.el.style.top=(e.y+yo)+'vh';
     if((e.dir===-1&&e.x<-25)||(e.dir===1&&e.x>118)){clearInterval(e.wig);e.el.remove();entities.splice(i,1);}
   }
