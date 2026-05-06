@@ -113,9 +113,23 @@
   .cal-hour-lbl{width:38px;flex-shrink:0;font-size:0.45rem;color:var(--dim2);padding:3px 6px 0 4px;text-align:right;letter-spacing:0.04em;font-family:'Courier New',monospace;}
   .cal-hour-lane{flex:1;position:relative;min-height:44px;}
 
-  /* Current time line */
+  /* Current time line — shown as bottom border of the live block */
   .cal-now-line{position:absolute;left:0;right:0;height:1px;background:var(--red);z-index:3;pointer-events:none;}
   .cal-now-dot{position:absolute;left:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:var(--red);}
+  /* Live growing block gets a red glowing bottom edge instead of a separate now-line */
+  .cal-evt-live {
+    border-bottom: 2px solid var(--red) !important;
+    box-shadow: 0 2px 8px rgba(181,48,48,0.35);
+  }
+  .cal-evt-live::after {
+    content: '';
+    position: absolute;
+    bottom: -5px; left: -4px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 6px rgba(181,48,48,0.6);
+  }
 
   /* Calendar event blocks — positioned inside the lane column only */
   .cal-evt{
@@ -131,8 +145,8 @@
     border-left:3px solid var(--evt-accent, #d0d0d0);
     background:var(--evt-bg, rgba(255,255,255,0.08));
     color:var(--evt-text, #f0f0f0);
-    /* Smooth height transitions for the live growing block */
-    transition:height 0.25s linear;
+    /* No transition on height — grows in real time with the timer */
+    transition:none;
   }
   .cal-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;}
   .cal-evt-time{color:var(--evt-accent,#d0d0d0);font-family:'Courier New',monospace;font-size:0.42rem;margin-top:1px;opacity:0.75;}
@@ -380,9 +394,29 @@ function renderCal(scrollToNow) {
 
   const body = document.getElementById('cal-body');
   if (!segs.length) {
-    body.innerHTML = '<div class="no-cal">&gt; no sessions recorded.<br>&gt; start the timer to log time.</div>';
+    // Show empty grid with current-time line visible even before any sessions
+    const nowH = new Date().getHours();
+    const emptyMinH = Math.max(0, nowH - 1);
+    const emptyMaxH = Math.min(24, nowH + 4);
+    const emptyTotalH = emptyMaxH - emptyMinH;
+    const emptyTotalPx = emptyTotalH * PX_PER_HOUR;
+    let rowsHTML = '';
+    for (let h = emptyMinH; h < emptyMaxH; h++) {
+      const label = h===0?'12am':h<12?`${h}am`:h===12?'12pm':`${h-12}pm`;
+      rowsHTML += `<div style="display:flex;height:${PX_PER_HOUR}px;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <div style="width:${LBL_W}px;flex-shrink:0;font-size:0.45rem;color:var(--dim2);padding:3px 6px 0 4px;text-align:right;letter-spacing:0.04em;font-family:'Courier New',monospace;">${label}</div>
+        <div style="flex:1;border-left:1px solid rgba(255,255,255,0.04);"></div>
+      </div>`;
+    }
+    body.innerHTML = `<div id="cal-grid-wrap" style="position:relative;height:${emptyTotalPx}px;">
+      ${rowsHTML}
+      <div id="cal-evt-layer" style="position:absolute;top:0;left:${LBL_W}px;right:0;bottom:0;pointer-events:none;"></div>
+      <div id="cal-now-layer" style="position:absolute;top:0;left:0;right:0;pointer-events:none;"></div>
+    </div>`;
     calRenderState = null;
-    stopCalLive();
+    // Render now-line after DOM is painted
+    setTimeout(() => updateCalNowLine(emptyMinH), 0);
+    startCalNowTick();
     return;
   }
 
@@ -419,6 +453,7 @@ function renderCal(scrollToNow) {
         <div id="cal-now-layer" style="position:absolute;top:0;left:0;right:0;pointer-events:none;"></div>
       </div>`;
     calRenderState = { key: stateKey, minH, maxH, eventIds: new Set() };
+    startCalNowTick();
 
     // Scroll to first event minus 1 hour
     if (events.length) {
@@ -442,7 +477,7 @@ function renderCal(scrollToNow) {
     const startMins = (new Date(ev.startWall).getHours() - minH) * 60 + new Date(ev.startWall).getMinutes();
     const endMins   = (new Date(ev.endWall).getHours()   - minH) * 60 + new Date(ev.endWall).getMinutes() + new Date(ev.endWall).getSeconds() / 60;
     const topPx     = (startMins / 60) * PX_PER_HOUR;
-    const heightPx  = Math.max(20, ((endMins - startMins) / 60) * PX_PER_HOUR);
+    const heightPx  = Math.max(4, ((endMins - startMins) / 60) * PX_PER_HOUR);
     const dur       = fmtDuration(ev.endWall - ev.startWall);
     const timeStr   = `${fmtWallTime(ev.startWall)} – ${ev.live ? 'now' : fmtWallTime(ev.endWall)} · ${dur}`;
 
@@ -465,6 +500,9 @@ function renderCal(scrollToNow) {
     el.style.left     = '2px';
     el.style.right    = '2px';
     el.style.height   = heightPx + 'px';
+
+    // Live block gets red bottom-border "now line"; completed blocks don't
+    el.classList.toggle('cal-evt-live', !!ev.live);
 
     // Update text only if changed
     const nameEl = document.getElementById(`${id}-name`);
@@ -497,20 +535,42 @@ function renderCal(scrollToNow) {
     if (!activeIds.has(ch.id)) ch.remove();
   });
 
-  // ── Current time line ─────────────────────────────────────────────────────
-  const nowLayer = document.getElementById('cal-now-layer');
-  if (nowLayer && calDayOffset === 0) {
-    const now = new Date();
-    const nowMins = (now.getHours() - minH) * 60 + now.getMinutes() + now.getSeconds() / 60;
-    if (nowMins >= 0 && nowMins <= totalH * 60) {
-      const nowTop = (nowMins / 60) * PX_PER_HOUR;
-      nowLayer.innerHTML = `<div class="cal-now-line" style="top:${nowTop}px;left:${LBL_W}px;">
-        <div class="cal-now-dot"></div></div>`;
-    }
-  }
+  // Update the floating current-time red bar (always visible)
+  updateCalNowLine(minH);
 }
 
-// ── Live update: when timer is running and calendar is visible, update every second
+// ── updateCalNowLine: draw/move the red current-time bar in the cal grid ─────
+function updateCalNowLine(minH) {
+  const nowLayer = document.getElementById('cal-now-layer');
+  if (!nowLayer || calDayOffset !== 0) { if(nowLayer) nowLayer.innerHTML=''; return; }
+  const now = new Date();
+  const nowMins = (now.getHours() - minH) * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const wrap = document.getElementById('cal-grid-wrap');
+  const totalPx = wrap ? wrap.offsetHeight : 0;
+  if (nowMins < 0 || (totalPx > 0 && (nowMins / 60) * PX_PER_HOUR > totalPx)) {
+    nowLayer.innerHTML = ''; return;
+  }
+  const nowTop = (nowMins / 60) * PX_PER_HOUR;
+  nowLayer.innerHTML = `<div style="position:absolute;top:${nowTop}px;left:${LBL_W}px;right:0;height:2px;background:var(--red);z-index:3;">
+    <div style="position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 6px rgba(181,48,48,0.7);"></div>
+  </div>`;
+}
+
+// ── Always-on now-line tick (runs every second while cal tab is visible) ─────
+let calNowTickId = null;
+function startCalNowTick() {
+  if (calNowTickId) return;
+  calNowTickId = setInterval(() => {
+    if (document.getElementById('panel-cal').style.display !== 'flex') return;
+    // Recompute minH from current grid state
+    const minH = calRenderState ? calRenderState.minH : Math.max(0, new Date().getHours() - 1);
+    updateCalNowLine(minH);
+  }, 1000);
+}
+// Start the now-tick immediately — it runs forever regardless of timer state
+startCalNowTick();
+
+// ── Live update: when timer is running and calendar is visible, grow the block ─
 let calLiveInterval = null;
 function startCalLive() {
   if (calLiveInterval) return;
@@ -522,61 +582,116 @@ function stopCalLive() {
   if (calLiveInterval) { clearInterval(calLiveInterval); calLiveInterval = null; }
 }
 
-// Replay segments into calendar event blocks
+// Replay segments into calendar event blocks.
+//
+// KEY DESIGN:
+//   Each "lap" is one coloured block on the calendar, made up of one or more
+//   continuous "run segments" (start→pause pairs). When the timer resumes after
+//   a pause, we extend the SAME block rather than creating a new one.
+//
+//   segments flow:  start → pause → start(resume) → pause → lap → start → ...
+//
+//   We accumulate [runStart, runEnd] pairs per lap, then merge them into a
+//   single event whose startWall = first run's start, endWall = last run's end,
+//   and whose total duration = sum of all run durations.
 function buildCalEvents(segs) {
   const events = [];
-  let currentStart = null;   // wall ms
-  let currentLapName = 'study block';
-  let colorIdx = 0;
+
+  // Current lap accumulator
+  let lapName   = 'study block';
+  let colorIdx  = 0;
+  let runs      = [];        // [{start, end}] — completed run segments this lap
+  let runStart  = null;      // wall ms of current open run (null = paused/idle)
+  let lastPauseWall = null;  // when the last pause happened (for gap stripe)
+  let isRunning = false;
+
+  function closeLap(endWall) {
+    // Flush current run segment if open
+    if (runStart !== null) {
+      runs.push({ start: runStart, end: endWall });
+      runStart = null;
+    }
+    if (!runs.length) return;
+    // Merge all run segments: startWall = first start, endWall = last end
+    const merged = {
+      name:       lapName,
+      startWall:  runs[0].start,
+      endWall:    runs[runs.length - 1].end,
+      colorIdx,
+      pauseEndWall: null,
+      live:       false,
+    };
+    events.push(merged);
+    runs = [];
+    isRunning = false;
+  }
 
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
-    if (s.type === 'start') {
-      currentStart = s.wall;
-      currentLapName = s.lapName || 'study block';
-    } else if ((s.type === 'pause' || s.type === 'lap' || s.type === 'reset') && currentStart !== null) {
-      // Close the current event
-      const ev = {
-        name: currentLapName,
-        startWall: currentStart,
-        endWall: s.wall,
-        colorIdx,
-        pauseEndWall: null,
-      };
-      // If paused, find when it resumes to draw the gap stripe
-      if (s.type === 'pause') {
-        for (let j = i + 1; j < segs.length; j++) {
-          if (segs[j].type === 'start') {
-            ev.pauseEndWall = segs[j].wall;
-            break;
-          }
-        }
-      }
-      events.push(ev);
-      currentStart = null;
 
-      if (s.type === 'lap') {
-        // New lap starts immediately (same wall time as the lap event)
-        currentStart = s.wall;
-        currentLapName = s.name || `block ${events.length + 1}`;
-        colorIdx++;
-      } else if (s.type === 'reset') {
-        colorIdx++;
-        currentStart = null;
+    if (s.type === 'start') {
+      // Resume or fresh start — open a new run segment
+      runStart  = s.wall;
+      lapName   = s.lapName || lapName;
+      isRunning = true;
+      // If this is a resume, attach the gap stripe to the previous block
+      if (events.length && lastPauseWall) {
+        events[events.length - 1].pauseEndWall = s.wall;
       }
+      lastPauseWall = null;
+
+    } else if (s.type === 'pause') {
+      // Close the current run segment — lap stays open (may resume)
+      if (runStart !== null) {
+        runs.push({ start: runStart, end: s.wall });
+        runStart = null;
+      }
+      isRunning = false;
+      lastPauseWall = s.wall;
+      // Update the last event's endWall to this pause time so the block
+      // reflects actual elapsed (not shown yet — lap not closed)
+
+    } else if (s.type === 'lap') {
+      // End of lap: close it and start a new one immediately
+      closeLap(s.wall);
+      lapName  = s.name || `block ${events.length + 1}`;
+      colorIdx++;
+      // Lap immediately resumes (saveLap records a new 'start' right after)
+
+    } else if (s.type === 'reset') {
+      closeLap(s.wall);
+      colorIdx++;
+      lapName = 'study block';
     }
   }
 
-  // If timer is currently running, show a live growing in-progress block
-  if (currentStart !== null && S.run) {
-    events.push({
-      name: currentLapName,
-      startWall: currentStart,
-      endWall: Date.now(),   // always current — re-evaluated each render
-      colorIdx,
-      pauseEndWall: null,
-      live: true,            // signals this block should keep growing
-    });
+  // ── Live block: currently running, not yet paused or lapped ──────────────
+  if (isRunning && runStart !== null && S.run) {
+    // Anchor the block to "now" and work backwards using the timer's elapsed value.
+    //
+    //   endWall   = Date.now()                  (bottom = current time, pinned)
+    //   startWall = Date.now() - timerElapsed   (top    = theoretical start)
+    //
+    // Effect of ↑ (+60s): timerElapsed grows → startWall moves 60s EARLIER
+    //                      → block top shifts UP the calendar  ✓
+    // Effect of ↓ (-60s): timerElapsed shrinks → startWall moves 60s LATER
+    //                      → block top shifts DOWN the calendar ✓
+    // Normal running:      endWall and startWall both advance at 1s/s → block
+    //                      slides down the calendar while height stays constant ✓
+    const now = Date.now();
+    const timerElapsedMs = getCurrentT() * 1000;  // timer seconds → ms
+
+    // Show from first second
+    if (timerElapsedMs >= 1000) {
+      events.push({
+        name:        lapName,
+        startWall:   now - timerElapsedMs,
+        endWall:     now,
+        colorIdx,
+        pauseEndWall: null,
+        live:        true,
+      });
+    }
   }
 
   return events;
@@ -593,6 +708,11 @@ function switchTab(tab) {
   if (tab === 'cal') {
     calRenderState = null; // force full rebuild when switching to cal
     renderCal(true);
+    // Always draw the now-line immediately when tab opens
+    setTimeout(() => {
+      const mH = calRenderState ? calRenderState.minH : Math.max(0, new Date().getHours() - 1);
+      updateCalNowLine(mH);
+    }, 0);
     if (S.run) startCalLive();
   } else {
     stopCalLive();
@@ -967,8 +1087,18 @@ document.addEventListener('keydown',e=>{
     case 'r':case 'R':resetTimer();break;
     case 'f':case 'F':toggleFS();break;
     case 'p':case 'P':toggleBowl();break;
-    case 'ArrowUp':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}S.t=Math.max(0,S.t+60);if(S.run)S.startedAt=performance.now();updClock();pushBowlState();break;
-    case 'ArrowDown':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}S.t=Math.max(0,S.t-60);if(S.run)S.startedAt=performance.now();updClock();pushBowlState();break;
+    case 'ArrowUp':
+      e.preventDefault();
+      if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}
+      S.t=Math.max(0,S.t+60);
+      if(S.run)S.startedAt=performance.now();
+      updClock();pushBowlState();break;
+    case 'ArrowDown':
+      e.preventDefault();
+      if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}
+      S.t=Math.max(0,S.t-60);
+      if(S.run)S.startedAt=performance.now();
+      updClock();pushBowlState();break;
   }
 });
 document.getElementById('linput').addEventListener('keydown',e=>{if(e.key==='Enter')saveLap();});
