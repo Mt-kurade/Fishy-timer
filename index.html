@@ -339,16 +339,33 @@ function clearCalDay() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Colour palette — matches lap colours but as calendar accent colours
+// Randomised colour palette — each lap gets a visually distinct colour.
+// Colours are muted/desaturated to suit the dark theme.
 const CAL_COLORS = [
-  { bg:'rgba(255,255,255,0.08)', accent:'#d0d0d0', text:'#f0f0f0' },
-  { bg:'rgba(255,255,255,0.06)', accent:'#aaaaaa', text:'#d8d8d8' },
-  { bg:'rgba(255,255,255,0.07)', accent:'#c0c0c0', text:'#e8e8e8' },
-  { bg:'rgba(255,255,255,0.05)', accent:'#909090', text:'#c8c8c8' },
-  { bg:'rgba(255,255,255,0.09)', accent:'#e0e0e0', text:'#f4f4f4' },
-  { bg:'rgba(255,255,255,0.06)', accent:'#b8b8b8', text:'#e0e0e0' },
-  { bg:'rgba(255,255,255,0.07)', accent:'#cecece', text:'#ececec' },
-  { bg:'rgba(255,255,255,0.05)', accent:'#989898', text:'#d0d0d0' },
+  { bg:'rgba(100,149,180,0.18)', accent:'#6495b4', text:'#8bb8d4' },  // steel blue
+  { bg:'rgba(140,180,100,0.18)', accent:'#8cb464', text:'#aad478' },  // sage green
+  { bg:'rgba(180,120,140,0.18)', accent:'#b4788c', text:'#d498ac' },  // dusty rose
+  { bg:'rgba(180,155,80,0.18)',  accent:'#b49b50', text:'#d4bb70' },  // warm gold
+  { bg:'rgba(120,140,190,0.18)', accent:'#788cbe', text:'#98acde' },  // periwinkle
+  { bg:'rgba(160,100,100,0.18)', accent:'#a06464', text:'#c08484' },  // terracotta
+  { bg:'rgba(80,170,150,0.18)',  accent:'#50aa96', text:'#70cab6' },  // teal
+  { bg:'rgba(170,130,80,0.18)',  accent:'#aa8250', text:'#ca9e70' },  // caramel
+  { bg:'rgba(130,100,180,0.18)', accent:'#8264b4', text:'#a284d4' },  // lavender
+  { bg:'rgba(80,155,100,0.18)',  accent:'#509b64', text:'#70bb84' },  // forest green
+  { bg:'rgba(190,100,120,0.18)', accent:'#be6478', text:'#de8498' },  // coral
+  { bg:'rgba(90,150,180,0.18)',  accent:'#5a96b4', text:'#7ab6d4' },  // sky blue
 ];
+
+// Each lap gets a colour assigned at segment-save time so it stays consistent
+// across re-renders. Stored as colorSeed on the 'start' segment.
+function nextCalColor(usedIndices) {
+  // Pick a colour not recently used
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const idx = Math.floor(Math.random() * CAL_COLORS.length);
+    if (!usedIndices.has(idx)) return idx;
+  }
+  return Math.floor(Math.random() * CAL_COLORS.length);
+}
 
 function calOffset(delta) {
   if (delta === 0) calDayOffset = 0;
@@ -395,9 +412,9 @@ function renderCal(scrollToNow) {
   const body = document.getElementById('cal-body');
   if (!segs.length) {
     // Show empty grid with current-time line visible even before any sessions
-    const nowH = new Date().getHours();
-    const emptyMinH = Math.max(0, nowH - 1);
-    const emptyMaxH = Math.min(24, nowH + 4);
+    // Full 24-hour day: midnight → midnight
+    const emptyMinH = 0;
+    const emptyMaxH = 24;
     const emptyTotalH = emptyMaxH - emptyMinH;
     const emptyTotalPx = emptyTotalH * PX_PER_HOUR;
     let rowsHTML = '';
@@ -422,15 +439,9 @@ function renderCal(scrollToNow) {
 
   const events = buildCalEvents(segs);
 
-  // Hour range
-  let minH = 8, maxH = 21;
-  events.forEach(ev => {
-    const sh = new Date(ev.startWall).getHours();
-    const eh = Math.ceil((ev.endWall - new Date(ev.startWall).setHours(0,0,0,0)) / 3600000);
-    minH = Math.min(minH, Math.max(0, sh - 1));
-    maxH = Math.max(maxH, Math.min(24, new Date(ev.endWall).getHours() + 2));
-  });
-
+  // Full 24-hour day: midnight → midnight (0–24)
+  const minH = 0;
+  const maxH = 24;
   const totalH  = maxH - minH;
   const totalPx = totalH * PX_PER_HOUR;
 
@@ -455,11 +466,10 @@ function renderCal(scrollToNow) {
     calRenderState = { key: stateKey, minH, maxH, eventIds: new Set() };
     startCalNowTick();
 
-    // Scroll to first event minus 1 hour
-    if (events.length) {
-      const firstMins = (new Date(events[0].startWall).getHours() - minH - 1) * 60;
-      body.scrollTop = Math.max(0, (firstMins / 60) * PX_PER_HOUR);
-    }
+    // Scroll to current time (or first event if earlier)
+    const scrollHour = new Date().getHours();
+    const scrollMins = Math.max(0, (scrollHour - minH - 1) * 60);
+    body.scrollTop = Math.max(0, (scrollMins / 60) * PX_PER_HOUR);
   }
 
   // ── Update/create event blocks ────────────────────────────────────────────
@@ -473,7 +483,7 @@ function renderCal(scrollToNow) {
     const id = `calev-${idx}`;
     activeIds.add(id);
 
-    const col = CAL_COLORS[ev.colorIdx % CAL_COLORS.length];
+    const col = ev.col || CAL_COLORS[ev.colorIdx % CAL_COLORS.length];
     const startMins = (new Date(ev.startWall).getHours() - minH) * 60 + new Date(ev.startWall).getMinutes();
     const endMins   = (new Date(ev.endWall).getHours()   - minH) * 60 + new Date(ev.endWall).getMinutes() + new Date(ev.endWall).getSeconds() / 60;
     const topPx     = (startMins / 60) * PX_PER_HOUR;
@@ -584,45 +594,41 @@ function stopCalLive() {
 
 // Replay segments into calendar event blocks.
 //
-// KEY DESIGN:
-//   Each "lap" is one coloured block on the calendar, made up of one or more
-//   continuous "run segments" (start→pause pairs). When the timer resumes after
-//   a pause, we extend the SAME block rather than creating a new one.
-//
-//   segments flow:  start → pause → start(resume) → pause → lap → start → ...
-//
-//   We accumulate [runStart, runEnd] pairs per lap, then merge them into a
-//   single event whose startWall = first run's start, endWall = last run's end,
-//   and whose total duration = sum of all run durations.
+// DESIGN: Each lap = one distinct coloured block.
+//   Pause/resume within a lap extends the SAME block (no new block on resume).
+//   A new block only starts when [lap] is pressed or after a reset.
+//   Each block gets its colour from the colorSeed stored on its 'start' segment.
+//   timerAtLapStart on 'start' segments lets us compute elapsed within the lap.
 function buildCalEvents(segs) {
   const events = [];
+  const usedColorIdxs = new Set();
 
-  // Current lap accumulator
-  let lapName   = 'study block';
-  let colorIdx  = 0;
-  let runs      = [];        // [{start, end}] — completed run segments this lap
-  let runStart  = null;      // wall ms of current open run (null = paused/idle)
-  let lastPauseWall = null;  // when the last pause happened (for gap stripe)
-  let isRunning = false;
+  let lapName         = 'study block';
+  let colorIdx        = 0;
+  let runs            = [];     // [{start,end}] completed run segments this lap
+  let runStart        = null;   // wall ms of current open run
+  let isRunning       = false;
+  let lastPauseWall   = null;
+  let timerAtLapStart = 0;      // timer value (seconds) when current lap began
 
   function closeLap(endWall) {
-    // Flush current run segment if open
     if (runStart !== null) {
       runs.push({ start: runStart, end: endWall });
       runStart = null;
     }
     if (!runs.length) return;
-    // Merge all run segments: startWall = first start, endWall = last end
-    const merged = {
-      name:       lapName,
-      startWall:  runs[0].start,
-      endWall:    runs[runs.length - 1].end,
+    const col = CAL_COLORS[colorIdx % CAL_COLORS.length];
+    events.push({
+      name:         lapName,
+      startWall:    runs[0].start,
+      endWall:      runs[runs.length - 1].end,
       colorIdx,
+      col,
       pauseEndWall: null,
-      live:       false,
-    };
-    events.push(merged);
-    runs = [];
+      live:         false,
+    });
+    usedColorIdxs.add(colorIdx);
+    runs      = [];
     isRunning = false;
   }
 
@@ -630,66 +636,57 @@ function buildCalEvents(segs) {
     const s = segs[i];
 
     if (s.type === 'start') {
-      // Resume or fresh start — open a new run segment
       runStart  = s.wall;
-      lapName   = s.lapName || lapName;
-      isRunning = true;
-      // If this is a resume, attach the gap stripe to the previous block
+      colorIdx  = (s.colorSeed !== undefined)
+        ? s.colorSeed % CAL_COLORS.length
+        : nextCalColor(usedColorIdxs);
+      lapName          = s.lapName || lapName;
+      timerAtLapStart  = s.timerAtLapStart || 0;
+      isRunning        = true;
       if (events.length && lastPauseWall) {
         events[events.length - 1].pauseEndWall = s.wall;
       }
       lastPauseWall = null;
 
     } else if (s.type === 'pause') {
-      // Close the current run segment — lap stays open (may resume)
       if (runStart !== null) {
         runs.push({ start: runStart, end: s.wall });
         runStart = null;
       }
-      isRunning = false;
+      isRunning     = false;
       lastPauseWall = s.wall;
-      // Update the last event's endWall to this pause time so the block
-      // reflects actual elapsed (not shown yet — lap not closed)
 
     } else if (s.type === 'lap') {
-      // End of lap: close it and start a new one immediately
+      lapName = s.name || lapName;   // user's chosen name on the closing block
       closeLap(s.wall);
-      lapName  = s.name || `block ${events.length + 1}`;
-      colorIdx++;
-      // Lap immediately resumes (saveLap records a new 'start' right after)
+      lapName         = 'study block';
+      timerAtLapStart = 0;
 
     } else if (s.type === 'reset') {
       closeLap(s.wall);
-      colorIdx++;
-      lapName = 'study block';
+      lapName         = 'study block';
+      timerAtLapStart = 0;
     }
   }
 
-  // ── Live block: currently running, not yet paused or lapped ──────────────
+  // ── Live (growing) block ─────────────────────────────────────────────────
   if (isRunning && runStart !== null && S.run) {
-    // Anchor the block to "now" and work backwards using the timer's elapsed value.
-    //
-    //   endWall   = Date.now()                  (bottom = current time, pinned)
-    //   startWall = Date.now() - timerElapsed   (top    = theoretical start)
-    //
-    // Effect of ↑ (+60s): timerElapsed grows → startWall moves 60s EARLIER
-    //                      → block top shifts UP the calendar  ✓
-    // Effect of ↓ (-60s): timerElapsed shrinks → startWall moves 60s LATER
-    //                      → block top shifts DOWN the calendar ✓
-    // Normal running:      endWall and startWall both advance at 1s/s → block
-    //                      slides down the calendar while height stays constant ✓
-    const now = Date.now();
-    const timerElapsedMs = getCurrentT() * 1000;  // timer seconds → ms
+    const blockStart = runs.length > 0 ? runs[0].start : runStart;
 
-    // Show from first second
-    if (timerElapsedMs >= 1000) {
+    // Elapsed within THIS lap only (not total timer)
+    const lapElapsedSec = getCurrentT() - timerAtLapStart;
+    const lapElapsedMs  = lapElapsedSec * 1000;
+
+    // Only show once at least 5 seconds have elapsed (prevents zero-height sliver)
+    if (lapElapsedSec >= 5) {
       events.push({
-        name:        lapName,
-        startWall:   now - timerElapsedMs,
-        endWall:     now,
+        name:         lapName,
+        startWall:    blockStart,
+        endWall:      blockStart + lapElapsedMs,
         colorIdx,
+        col:          CAL_COLORS[colorIdx % CAL_COLORS.length],
         pauseEndWall: null,
-        live:        true,
+        live:         true,
       });
     }
   }
@@ -710,7 +707,7 @@ function switchTab(tab) {
     renderCal(true);
     // Always draw the now-line immediately when tab opens
     setTimeout(() => {
-      const mH = calRenderState ? calRenderState.minH : Math.max(0, new Date().getHours() - 1);
+      const mH = calRenderState ? calRenderState.minH : 1;
       updateCalNowLine(mH);
     }, 0);
     if (S.run) startCalLive();
@@ -815,7 +812,7 @@ function play(){
   document.getElementById('sbtn').textContent='[ pause ]';
   document.getElementById('lbtn').disabled=false;
   // Record start event with current lap name
-  saveCalSegment({type:'start', wall:Date.now(), lapName: currentLapName});
+  saveCalSegment({type:'start', wall:Date.now(), lapName: currentLapName, colorSeed: Math.floor(Math.random() * 12), timerAtLapStart: getCurrentT()});
   startCalLive();
   reqWL(); updClock(); pushBowlState();
 }
@@ -863,11 +860,19 @@ function saveLap(){
   S.laps.push({...S.pend,name,ci:S.laps.length%LC.length});
   S.ls=S.pend.end; S.pend=null;
   document.getElementById('lap-modal').style.display='none';
-  // Record lap event — ends current block, next start will begin new one
-  saveCalSegment({type:'lap', wall:Date.now(), name});
+  // Record lap event — closes current block with user's chosen name
+  const lapWall = Date.now();
+  saveCalSegment({type:'lap', wall:lapWall, name});
   currentLapName = `block ${S.laps.length + 1}`;
-  // Immediately record the new block starting
-  saveCalSegment({type:'start', wall:Date.now(), lapName: currentLapName});
+  // New block starts 1ms after so segment order is unambiguous
+  // timerAtLapStart = current timer value so live block measures elapsed within THIS lap only
+  saveCalSegment({
+    type:            'start',
+    wall:            lapWall + 1,
+    lapName:         currentLapName,
+    colorSeed:       Math.floor(Math.random() * 12),
+    timerAtLapStart: getCurrentT()
+  });
   autosave(); renderLaps(); pushBowlState();
 }
 function cancelLap(){S.pend=null;document.getElementById('lap-modal').style.display='none';}
