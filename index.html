@@ -520,24 +520,7 @@ function renderCal(scrollToNow) {
     if (nameEl && nameEl.textContent !== ev.name) nameEl.textContent = ev.name;
     if (timeEl && timeEl.textContent !== timeStr)  timeEl.textContent = timeStr;
 
-    // Pause gap
-    const gapId = `calgap-${idx}`;
-    if (ev.pauseEndWall && ev.pauseEndWall > ev.endWall) {
-      activeIds.add(gapId);
-      const gStartMins = endMins;
-      const gEndMins   = (new Date(ev.pauseEndWall).getHours() - minH) * 60 + new Date(ev.pauseEndWall).getMinutes();
-      const gTop    = (gStartMins / 60) * PX_PER_HOUR;
-      const gHeight = Math.max(4, ((gEndMins - gStartMins) / 60) * PX_PER_HOUR);
-      let gEl = document.getElementById(gapId);
-      if (!gEl) {
-        gEl = document.createElement('div'); gEl.id = gapId; gEl.className = 'cal-gap';
-        layer.appendChild(gEl);
-      }
-      gEl.style.position = 'absolute';
-      gEl.style.top    = gTop + 'px';
-      gEl.style.height = gHeight + 'px';
-      gEl.style.left   = '2px'; gEl.style.right = '2px';
-    }
+    // Pauses are plain empty space — no stripe rendered
   });
 
   // Remove stale blocks
@@ -594,41 +577,50 @@ function stopCalLive() {
 
 // Replay segments into calendar event blocks.
 //
-// DESIGN: Each lap = one distinct coloured block.
-//   Pause/resume within a lap extends the SAME block (no new block on resume).
-//   A new block only starts when [lap] is pressed or after a reset.
-//   Each block gets its colour from the colorSeed stored on its 'start' segment.
-//   timerAtLapStart on 'start' segments lets us compute elapsed within the lap.
+// DESIGN:
+//   - Each run segment (start→pause or start→lap) = one coloured rectangle.
+//   - All run segments within the same lap share the same colour and name.
+//   - Pauses = empty white space (no block, no stripe, no colour).
+//   - A new colour/name only begins when [lap] is pressed or after reset.
+//   - The live block is the currently-open run segment growing in real time.
+//   - Completed run segments within the current lap are also shown.
 function buildCalEvents(segs) {
   const events = [];
   const usedColorIdxs = new Set();
 
   let lapName         = 'study block';
   let colorIdx        = 0;
-  let runs            = [];     // [{start,end}] completed run segments this lap
-  let runStart        = null;   // wall ms of current open run
+  let runStart        = null;    // wall ms when current run segment started
   let isRunning       = false;
-  let lastPauseWall   = null;
-  let timerAtLapStart = 0;      // timer value (seconds) when current lap began
+  let timerAtLapStart = 0;
+  // All COMPLETED run segments for the current lap (not yet closed by lap/reset)
+  let currentLapRuns  = [];
 
-  function closeLap(endWall) {
+  // Emit one coloured block for a single run segment
+  function emitRun(startWall, endWall, isLive) {
+    const minMs = isLive ? 5000 : 1000;  // live: 5s threshold; completed: 1s
+    if (endWall - startWall < minMs) return;
+    events.push({
+      name:      lapName,
+      startWall,
+      endWall,
+      colorIdx,
+      col:       CAL_COLORS[colorIdx % CAL_COLORS.length],
+      live:      isLive || false,
+    });
+  }
+
+  // Flush all completed runs for the current lap (called on lap/reset)
+  function closeCurrentLap(endWall) {
+    // Close any open run segment first
     if (runStart !== null) {
-      runs.push({ start: runStart, end: endWall });
+      currentLapRuns.push({ start: runStart, end: endWall });
       runStart = null;
     }
-    if (!runs.length) return;
-    const col = CAL_COLORS[colorIdx % CAL_COLORS.length];
-    events.push({
-      name:         lapName,
-      startWall:    runs[0].start,
-      endWall:      runs[runs.length - 1].end,
-      colorIdx,
-      col,
-      pauseEndWall: null,
-      live:         false,
-    });
+    // Emit each run segment as its own block
+    currentLapRuns.forEach(r => emitRun(r.start, r.end, false));
     usedColorIdxs.add(colorIdx);
-    runs      = [];
+    currentLapRuns = [];
     isRunning = false;
   }
 
@@ -636,59 +628,54 @@ function buildCalEvents(segs) {
     const s = segs[i];
 
     if (s.type === 'start') {
-      runStart  = s.wall;
-      colorIdx  = (s.colorSeed !== undefined)
-        ? s.colorSeed % CAL_COLORS.length
-        : nextCalColor(usedColorIdxs);
-      lapName          = s.lapName || lapName;
-      timerAtLapStart  = s.timerAtLapStart || 0;
-      isRunning        = true;
-      if (events.length && lastPauseWall) {
-        events[events.length - 1].pauseEndWall = s.wall;
+      // New run segment begins (could be first start or resume after pause)
+      runStart = s.wall;
+      // Only update colour/name if this is truly a new lap start
+      // (detected by presence of colorSeed — set by play() and saveLap())
+      if (s.colorSeed !== undefined) {
+        colorIdx = s.colorSeed % CAL_COLORS.length;
+        lapName  = s.lapName || lapName;
+        timerAtLapStart = s.timerAtLapStart || 0;
       }
-      lastPauseWall = null;
+      isRunning = true;
 
     } else if (s.type === 'pause') {
+      // Run segment ends — store it, don't emit yet (lap not closed)
       if (runStart !== null) {
-        runs.push({ start: runStart, end: s.wall });
-        runStart = null;
+        currentLapRuns.push({ start: runStart, end: s.wall });
+        runStart  = null;
+        isRunning = false;
       }
-      isRunning     = false;
-      lastPauseWall = s.wall;
 
     } else if (s.type === 'lap') {
-      lapName = s.name || lapName;   // user's chosen name on the closing block
-      closeLap(s.wall);
+      // Apply user's name, close all run segments, reset for next lap
+      lapName = s.name || lapName;
+      closeCurrentLap(s.wall);
       lapName         = 'study block';
       timerAtLapStart = 0;
 
     } else if (s.type === 'reset') {
-      closeLap(s.wall);
+      closeCurrentLap(s.wall);
       lapName         = 'study block';
       timerAtLapStart = 0;
     }
   }
 
-  // ── Live (growing) block ─────────────────────────────────────────────────
+  // ── Emit completed run segments of the CURRENT (unfinished) lap ──────────
+  // These are past run segments within this lap that ended with a pause.
+  currentLapRuns.forEach(r => emitRun(r.start, r.end, false));
+
+  // ── Live block: the currently open run segment ────────────────────────────
   if (isRunning && runStart !== null && S.run) {
-    const blockStart = runs.length > 0 ? runs[0].start : runStart;
+    // endWall = runStart + elapsed within this specific run segment
+    // Use timerElapsed - timerAtLapStart to get elapsed since lap began,
+    // then subtract completed run time to get elapsed in THIS segment only.
+    const completedRunMs = currentLapRuns.reduce((a, r) => a + (r.end - r.start), 0);
+    const lapElapsedMs   = (getCurrentT() - timerAtLapStart) * 1000;
+    const segElapsedMs   = lapElapsedMs - completedRunMs;
+    const liveEndWall    = runStart + Math.max(0, segElapsedMs);
 
-    // Elapsed within THIS lap only (not total timer)
-    const lapElapsedSec = getCurrentT() - timerAtLapStart;
-    const lapElapsedMs  = lapElapsedSec * 1000;
-
-    // Only show once at least 5 seconds have elapsed (prevents zero-height sliver)
-    if (lapElapsedSec >= 5) {
-      events.push({
-        name:         lapName,
-        startWall:    blockStart,
-        endWall:      blockStart + lapElapsedMs,
-        colorIdx,
-        col:          CAL_COLORS[colorIdx % CAL_COLORS.length],
-        pauseEndWall: null,
-        live:         true,
-      });
-    }
+    emitRun(runStart, liveEndWall, true);
   }
 
   return events;
