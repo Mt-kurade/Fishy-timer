@@ -185,6 +185,36 @@
   body.fs .side{display:none;}
   body.fs .app{grid-template-columns:1fr;}
   body.fs .tips{display:none;}
+
+  /* ── Edit history modal ── */
+  .edit-modal{background:#0e0e0e;border:1px solid var(--b2);width:500px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;}
+  .edit-modal-hd{padding:1.1rem 1.4rem 0.8rem;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .edit-modal-hd h3{font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text);}
+  .edit-modal-hd .close-x{background:none;border:none;color:var(--dim);font-size:1rem;cursor:pointer;line-height:1;transition:color 0.12s;}
+  .edit-modal-hd .close-x:hover{color:var(--red);}
+  .edit-modal-body{flex:1;overflow-y:auto;padding:0.8rem 1rem;}
+  .edit-modal-body::-webkit-scrollbar{width:2px;}
+  .edit-modal-body::-webkit-scrollbar-thumb{background:var(--b1);}
+  .edit-modal-ft{padding:0.8rem 1.4rem;border-top:1px solid var(--b1);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;}
+
+  /* Editable lap row */
+  .elap{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--b1);background:var(--s1);margin-bottom:4px;transition:border-color 0.12s;}
+  .elap:hover{border-color:var(--b2);}
+  .elap-drag{color:var(--dim2);font-size:0.7rem;cursor:grab;padding:0 2px;user-select:none;}
+  .elap-drag:active{cursor:grabbing;}
+  .elap-color{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,0.15);}
+  .elap-name{flex:1;background:none;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'Times New Roman',Times,serif;font-size:0.62rem;letter-spacing:0.04em;outline:none;padding:2px 4px;transition:border-color 0.12s;}
+  .elap-name:focus{border-bottom-color:var(--acc);}
+  .elap-dur{font-size:0.56rem;color:var(--dim);font-family:'Courier New',monospace;white-space:nowrap;}
+  .elap-del{background:none;border:none;color:var(--dim2);font-size:0.65rem;cursor:pointer;line-height:1;padding:0 3px;transition:color 0.12s;flex-shrink:0;}
+  .elap-del:hover{color:var(--red);}
+
+  .edit-day-hd{font-size:0.52rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);padding:4px 2px 6px;margin-top:8px;border-bottom:1px solid var(--b1);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+  .edit-day-total{color:var(--acc);font-weight:700;}
+
+  /* si edit button */
+  .si-edit{background:none;border:1px solid var(--b1);color:var(--dim2);font-family:'Times New Roman',serif;font-size:0.48rem;letter-spacing:0.08em;text-transform:uppercase;padding:2px 7px;cursor:pointer;transition:all 0.12s;margin-left:6px;}
+  .si-edit:hover{border-color:var(--acc);color:var(--acc);}
 </style>
 </head>
 <body>
@@ -276,6 +306,21 @@
     <p id="smsub"></p>
     <div class="sm-laps" id="smlaps"></div>
     <div class="macts" style="margin-top:1.1rem;"><button class="btn main" onclick="closeSM()">[ close ]</button></div>
+  </div>
+</div>
+
+<!-- Edit history modal -->
+<div class="ovl" id="edit-modal" style="display:none;">
+  <div class="edit-modal">
+    <div class="edit-modal-hd">
+      <h3 id="edit-modal-title">// edit session</h3>
+      <button class="close-x" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="edit-modal-body" id="edit-modal-body"></div>
+    <div class="edit-modal-ft">
+      <button class="btn" onclick="closeEditModal()">[ cancel ]</button>
+      <button class="btn main" onclick="saveEditModal()">[ save changes ]</button>
+    </div>
   </div>
 </div>
 
@@ -870,31 +915,217 @@ function clearLaps(){
 function lapHTML(l,i){const c=LC[l.ci];return`<div class="lap-item" style="--lc:${c}"><div class="lr1"><span class="ln">${esc(l.name)}</span><span class="lnum">#${i+1}</span></div><div class="ldur">${fmt(l.duration)}</div><div class="lrng">${fmt(l.start)} → ${fmt(l.end)}</div></div>`;}
 function renderLaps(){
   const el=document.getElementById('laps-list');
-  if(!S.laps.length){el.innerHTML='<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';return;}
-  el.innerHTML=S.laps.map(lapHTML).join('');el.scrollTop=el.scrollHeight;
+  // Gather all of today's laps: saved sessions from today + current S.laps
+  const all=getS();
+  const tk=todayKey();
+  const todaySess=all.find(s=>dayKey(s.date)===tk);
+  const savedTodayLaps=todaySess?todaySess.laps:[];
+  const allTodayLaps=[...savedTodayLaps,...S.laps];
+  if(!allTodayLaps.length){
+    el.innerHTML='<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';
+    return;
+  }
+  // Show a "today's total" header
+  const todayTotal=allTodayLaps.reduce((a,l)=>a+l.duration,0);
+  const headerHTML=`<div style="padding:5px 10px 8px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">
+    <div style="font-size:0.52rem;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;">today's total</div>
+    <div style="font-size:0.85rem;font-weight:700;color:var(--acc);margin-top:2px;">${fmt(todayTotal)}</div>
+  </div>`;
+  el.innerHTML=headerHTML+allTodayLaps.map(lapHTML).join('');
+  el.scrollTop=el.scrollHeight;
 }
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 function getS(){try{return JSON.parse(localStorage.getItem('study_s')||'[]');}catch{return[];}}
+function dayKey(dateStr){
+  const d=new Date(dateStr);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+function todayKey(){return dayKey(new Date().toISOString());}
 function saveSess(){
-  if(!S.laps.length)return; const all=getS();
-  all.unshift({date:new Date().toISOString(),laps:S.laps,total:S.laps.reduce((a,l)=>a+l.duration,0)});
-  localStorage.setItem('study_s',JSON.stringify(all.slice(0,50)));renderSess();
+  if(!S.laps.length)return;
+  const all=getS();
+  const tk=todayKey();
+  // Find existing entry for today and merge into it
+  const idx=all.findIndex(s=>dayKey(s.date)===tk);
+  if(idx>=0){
+    // Merge: append new laps, recalc total, keep earliest date
+    all[idx].laps=[...all[idx].laps,...S.laps];
+    all[idx].total=all[idx].laps.reduce((a,l)=>a+l.duration,0);
+  } else {
+    // New day entry — prepend
+    all.unshift({date:new Date().toISOString(),laps:S.laps,total:S.laps.reduce((a,l)=>a+l.duration,0)});
+  }
+  localStorage.setItem('study_s',JSON.stringify(all.slice(0,60)));renderSess();
 }
 function clearSessions(){if(!confirm('delete all saved sessions?'))return;localStorage.removeItem('study_s');renderSess();}
 function renderSess(){
   const el=document.getElementById('sess-list');const all=getS();
   if(!all.length){el.innerHTML='<div class="no-sess">&gt; no saved sessions</div>';return;}
-  el.innerHTML=all.map((s,i)=>{const d=new Date(s.date);return`<div class="si" onclick="viewSess(${i})"><div class="sr1"><span class="sdate">${d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</span><span class="stot">${fmt(s.total)}</span></div><div class="sdesc">${s.laps.length} block${s.laps.length===1?'':'s'} · ${s.laps.map(l=>esc(l.name)).join(', ').substring(0,46)}</div></div>`;}).join('');
+  // Sessions are already grouped by day via saveSess merge logic.
+  // Sort so most recent day is first.
+  const sorted=[...all].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  el.innerHTML=sorted.map((s,i)=>{
+    const d=new Date(s.date);
+    const isToday=dayKey(s.date)===todayKey();
+    const dateLabel=isToday?'today':d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    const origIdx=all.indexOf(s);
+    return`<div class="si">
+      <div class="sr1" onclick="viewSess(${origIdx})" style="cursor:pointer;">
+        <span class="sdate">${dateLabel}</span>
+        <div style="display:flex;align-items:center;">
+          <span class="stot">${fmt(s.total)}</span>
+          <button class="si-edit" onclick="event.stopPropagation();openEditModal(${origIdx})" title="edit this day's sessions">edit</button>
+        </div>
+      </div>
+      <div class="sdesc" onclick="viewSess(${origIdx})" style="cursor:pointer;">${s.laps.length} block${s.laps.length===1?'':'s'} · ${s.laps.map(l=>esc(l.name)).join(', ').substring(0,60)}</div>
+    </div>`;
+  }).join('');
 }
 function viewSess(i){
-  const s=getS()[i];if(!s)return; const d=new Date(s.date);
-  document.getElementById('smtitle').textContent='// '+d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
-  document.getElementById('smsub').textContent=d.toLocaleTimeString()+' · total: '+fmt(s.total);
+  const s=getS()[i];if(!s)return;
+  const d=new Date(s.date);
+  const isToday=dayKey(s.date)===todayKey();
+  const dateLabel=isToday?'today':d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('smtitle').textContent=`// ${dateLabel}`;
+  document.getElementById('smsub').textContent=`${s.laps.length} block${s.laps.length===1?'':'s'} · total: ${fmt(s.total)}`;
   document.getElementById('smlaps').innerHTML=s.laps.map(lapHTML).join('');
   document.getElementById('sess-modal').style.display='flex';
 }
 function closeSM(){document.getElementById('sess-modal').style.display='none';}
+
+// ── History edit modal ────────────────────────────────────────────────────────
+let editIdx = null;      // index in study_s array currently being edited
+let editLaps = [];       // working copy of laps being edited
+let dragSrc  = null;     // drag-and-drop source index
+
+const LC_HEX = ['#aaa','#888','#ccc','#666','#bbb','#999','#ddd','#777'];
+
+function openEditModal(idx) {
+  editIdx  = idx;
+  const all = getS();
+  const s   = all[idx];
+  if (!s) return;
+  // Deep copy so we don't mutate until save
+  editLaps = s.laps.map(l => ({...l}));
+
+  const isToday = dayKey(s.date) === todayKey();
+  const d = new Date(s.date);
+  const dateLabel = isToday ? 'today'
+    : d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+
+  document.getElementById('edit-modal-title').textContent = `// edit · ${dateLabel}`;
+  renderEditBody();
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editIdx  = null;
+  editLaps = [];
+}
+
+function renderEditBody() {
+  const body = document.getElementById('edit-modal-body');
+  const total = editLaps.reduce((a,l) => a + l.duration, 0);
+
+  let html = `<div class="edit-day-hd">
+    <span>${editLaps.length} block${editLaps.length===1?'':'s'}</span>
+    <span class="edit-day-total">${fmt(total)} total</span>
+  </div>
+  <div style="font-size:0.48rem;color:var(--dim2);margin-bottom:8px;letter-spacing:0.06em;">
+    drag ⠿ to reorder · click name to rename · ✕ to delete
+  </div>`;
+
+  editLaps.forEach((l, i) => {
+    const colHex = LC_HEX[l.ci !== undefined ? l.ci % LC_HEX.length : i % LC_HEX.length];
+    html += `<div class="elap" draggable="true"
+      ondragstart="editDragStart(${i})"
+      ondragover="editDragOver(event,${i})"
+      ondrop="editDrop(event,${i})"
+      ondragend="editDragEnd()">
+      <span class="elap-drag">⠿</span>
+      <span class="elap-color" style="background:${colHex};"></span>
+      <input class="elap-name" value="${esc(l.name)}"
+        onchange="editLaps[${i}].name=this.value"
+        onblur="editLaps[${i}].name=this.value;renderEditBody()"
+        title="click to rename">
+      <span class="elap-dur">${fmt(l.duration)}</span>
+      <button class="elap-del" onclick="editDeleteLap(${i})" title="delete this block">✕</button>
+    </div>`;
+  });
+
+  if (!editLaps.length) {
+    html += `<div style="color:var(--dim2);font-size:0.56rem;padding:1rem 0;text-align:center;">no blocks — all deleted</div>`;
+  }
+
+  // Merge all option
+  if (editLaps.length > 1) {
+    html += `<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--b1);">
+      <button class="btn" style="font-size:0.52rem;padding:5px 12px;" onclick="editMergeAll()">
+        [ merge all into one block ]
+      </button>
+      <span style="font-size:0.48rem;color:var(--dim2);margin-left:8px;">combines all into a single block</span>
+    </div>`;
+  }
+
+  // Preserve input values — they'll be overwritten on re-render so capture first
+  body.innerHTML = html;
+
+  // Re-attach live input listeners (needed because innerHTML wipes them)
+  body.querySelectorAll('.elap-name').forEach((inp, i) => {
+    inp.addEventListener('input', () => { editLaps[i].name = inp.value; });
+  });
+}
+
+function editDeleteLap(i) {
+  editLaps.splice(i, 1);
+  renderEditBody();
+}
+
+function editMergeAll() {
+  if (editLaps.length < 2) return;
+  // Prompt for merged name
+  const names = editLaps.map(l => l.name).join(' + ');
+  const merged = {
+    name:     names.substring(0, 60),
+    start:    editLaps[0].start,
+    end:      editLaps[editLaps.length - 1].end,
+    duration: editLaps.reduce((a,l) => a + l.duration, 0),
+    ci:       editLaps[0].ci,
+  };
+  editLaps = [merged];
+  renderEditBody();
+}
+
+// Drag-and-drop reordering
+function editDragStart(i) { dragSrc = i; }
+function editDragEnd()     { dragSrc = null; }
+function editDragOver(e, i){ e.preventDefault(); }
+function editDrop(e, i) {
+  e.preventDefault();
+  if (dragSrc === null || dragSrc === i) return;
+  const moved = editLaps.splice(dragSrc, 1)[0];
+  editLaps.splice(i, 0, moved);
+  dragSrc = null;
+  renderEditBody();
+}
+
+function saveEditModal() {
+  if (editIdx === null) return;
+  const all = getS();
+  if (editLaps.length === 0) {
+    // Delete entire day entry if all laps removed
+    all.splice(editIdx, 1);
+  } else {
+    all[editIdx].laps  = editLaps;
+    all[editIdx].total = editLaps.reduce((a,l) => a + l.duration, 0);
+  }
+  localStorage.setItem('study_s', JSON.stringify(all));
+  closeEditModal();
+  renderSess();
+  renderLaps();  // refresh today's laps view if editing today
+}
 
 // ── Document PiP / popup ──────────────────────────────────────────────────────
 const BOWL_W=480, BOWL_H=200;
