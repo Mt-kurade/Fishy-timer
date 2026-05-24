@@ -342,6 +342,12 @@
 const CAL_KEY = 'fishy_cal';
 let calDayOffset = 0;   // 0 = today, -1 = yesterday, +1 = tomorrow
 
+// Key from a specific wall-clock millisecond timestamp (not current time)
+function wallDayKey(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+// Key offset from today (for calendar nav)
 function calDayKey(offsetFromToday = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetFromToday);
@@ -358,10 +364,12 @@ function loadCalDay(key) {
 function saveCalSegment(seg) {
   try {
     const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
-    const key = calDayKey(0);
+    // Use the segment's own wall timestamp to determine the day it belongs to.
+    // This means a session that started at 11:50pm and ends at 12:10am is
+    // correctly filed under the day it STARTED, not the day it ended.
+    const key = wallDayKey(seg.wall);
     if (!all[key]) all[key] = [];
     all[key].push(seg);
-    // Keep at most 60 days
     const keys = Object.keys(all).sort();
     if (keys.length > 60) delete all[keys[0]];
     localStorage.setItem(CAL_KEY, JSON.stringify(all));
@@ -865,7 +873,7 @@ function resetTimer(){
   // Record reset
   saveCalSegment({type:'reset', wall:Date.now()});
   stopCalLive();
-  S.t=0;S.laps=[];S.ls=0;S.pend=null;S.startedAt=null;
+  S.t=0;S.laps=[];S.ls=0;S.pend=null;S.startedAt=null;S.sessionStartWall=null;
   currentLapName='study block';
   document.getElementById('lbtn').disabled=true;
   document.getElementById('lap-modal').style.display='none';
@@ -925,11 +933,13 @@ function renderLaps(){
     el.innerHTML='<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';
     return;
   }
-  // Show a "today's total" header
-  const todayTotal=allTodayLaps.reduce((a,l)=>a+l.duration,0);
+  // Show a "today's total" header — derived from calendar segments (source of truth)
+  const calTodayTotal = calDayTotalFromSegments(todayKey());
+  const displayTotal  = calTodayTotal > 0 ? calTodayTotal
+    : allTodayLaps.reduce((a,l) => a + l.duration, 0);
   const headerHTML=`<div style="padding:5px 10px 8px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">
     <div style="font-size:0.52rem;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;">today's total</div>
-    <div style="font-size:0.85rem;font-weight:700;color:var(--acc);margin-top:2px;">${fmt(todayTotal)}</div>
+    <div style="font-size:0.85rem;font-weight:700;color:var(--acc);margin-top:2px;">${fmt(displayTotal)}</div>
   </div>`;
   el.innerHTML=headerHTML+allTodayLaps.map(lapHTML).join('');
   el.scrollTop=el.scrollHeight;
@@ -938,25 +948,53 @@ function renderLaps(){
 // ── Sessions ──────────────────────────────────────────────────────────────────
 function getS(){try{return JSON.parse(localStorage.getItem('study_s')||'[]');}catch{return[];}}
 function dayKey(dateStr){
+  // Use same format as wallDayKey so keys are comparable
   const d=new Date(dateStr);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 }
-function todayKey(){return dayKey(new Date().toISOString());}
+function todayKey(){return wallDayKey(Date.now());}
 function saveSess(){
   if(!S.laps.length)return;
   const all=getS();
-  const tk=todayKey();
-  // Find existing entry for today and merge into it
-  const idx=all.findIndex(s=>dayKey(s.date)===tk);
-  if(idx>=0){
-    // Merge: append new laps, recalc total, keep earliest date
-    all[idx].laps=[...all[idx].laps,...S.laps];
-    all[idx].total=all[idx].laps.reduce((a,l)=>a+l.duration,0);
+  // Use the session's actual start wall time (set when play() first called)
+  // so midnight-crossing sessions are filed under the day they STARTED.
+  const sessionWall = S.sessionStartWall || Date.now();
+  const sessionDate = new Date(sessionWall).toISOString();
+  const sk = wallDayKey(sessionWall);
+  const idx = all.findIndex(s => dayKey(s.date) === sk);
+  if(idx >= 0){
+    all[idx].laps  = [...all[idx].laps, ...S.laps];
+    all[idx].total = calDayTotalFromSegments(sk);  // use calendar data as source of truth
   } else {
-    // New day entry — prepend
-    all.unshift({date:new Date().toISOString(),laps:S.laps,total:S.laps.reduce((a,l)=>a+l.duration,0)});
+    all.unshift({
+      date:  sessionDate,
+      laps:  S.laps,
+      total: calDayTotalFromSegments(sk)
+    });
   }
-  localStorage.setItem('study_s',JSON.stringify(all.slice(0,60)));renderSess();
+  localStorage.setItem('study_s', JSON.stringify(all.slice(0, 60)));
+  renderSess();
+}
+
+// Calculate the true total studied time for a day by summing calendar run segments.
+// This is the source of truth — immune to midnight-crossing bugs.
+function calDayTotalFromSegments(dayKeyStr) {
+  const segs = loadCalDay(dayKeyStr);
+  let total = 0;
+  let runStart = null;
+  for (const s of segs) {
+    if (s.type === 'start') {
+      runStart = s.wall;
+    } else if ((s.type === 'pause' || s.type === 'lap' || s.type === 'reset') && runStart !== null) {
+      total += s.wall - runStart;
+      runStart = null;
+    }
+  }
+  // If still running (open segment), add elapsed to now
+  if (runStart !== null && S.run) {
+    total += Date.now() - runStart;
+  }
+  return Math.round(total / 1000);  // return seconds, same unit as lap.duration
 }
 function clearSessions(){if(!confirm('delete all saved sessions?'))return;localStorage.removeItem('study_s');renderSess();}
 function renderSess(){
