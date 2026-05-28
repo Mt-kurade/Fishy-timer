@@ -806,13 +806,60 @@ setInterval(processCmd, 200);
 
 // ── Autosave ──────────────────────────────────────────────────────────────────
 function todayStr(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
+
 function autosave(){
-  if(S.t<1&&!S.laps.length)return;
-  try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({date:todayStr(),t:S.t,mode:S.mode,ls:S.ls,laps:S.laps,wasRunning:S.run}));}catch{}
+  // Always save getCurrentT() (the live value), not the stale S.t.
+  // Also save the absolute wall-clock timestamp so we can compute
+  // how much extra time elapsed if the timer was running during a crash/restart.
+  const currentElapsed = getCurrentT();
+  if(currentElapsed < 1 && !S.laps.length) return;
+  try{
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+      date:        todayStr(),
+      t:           currentElapsed,      // live elapsed, not stale S.t
+      savedAtWall: Date.now(),          // wall clock at save time
+      wasRunning:  S.run,
+      mode:        S.mode,
+      ls:          S.ls,
+      laps:        S.laps,
+      sessionStartWall: S.sessionStartWall || null,
+    }));
+  }catch{}
 }
+
 function loadAutosave(){
-  try{const raw=localStorage.getItem(AUTOSAVE_KEY);if(!raw)return null;const saved=JSON.parse(raw);if(saved.date!==todayStr()){localStorage.removeItem(AUTOSAVE_KEY);return null;}return saved;}catch{return null;}
+  try{
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    if(!raw) return null;
+    const saved = JSON.parse(raw);
+
+    // Accept saves from today OR yesterday (handles midnight crossings —
+    // a session that started before midnight should still restore after midnight).
+    const savedDay   = saved.date;
+    const todayD     = todayStr();
+    const yesterdayD = (()=>{const d=new Date();d.setDate(d.getDate()-1);return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;})();
+    if(savedDay !== todayD && savedDay !== yesterdayD){
+      localStorage.removeItem(AUTOSAVE_KEY);
+      return null;
+    }
+
+    // If the timer was RUNNING when the save was written (crash/close mid-session),
+    // compute how much extra time elapsed between the save and now, and add it to t.
+    // This gives the most accurate possible restore after a computer restart.
+    if(saved.wasRunning && saved.savedAtWall){
+      const extraSec = (Date.now() - saved.savedAtWall) / 1000;
+      // Cap extra at 8 hours — beyond that something is clearly wrong
+      const cappedExtra = Math.min(extraSec, 8 * 3600);
+      if(saved.mode === 'countdown'){
+        saved.t = Math.max(0, saved.t - cappedExtra);
+      } else {
+        saved.t = saved.t + cappedExtra;
+      }
+    }
+    return saved;
+  }catch{ return null; }
 }
+
 function clearAutosave(){localStorage.removeItem(AUTOSAVE_KEY);}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -840,8 +887,7 @@ function updClock(){
 function tick(){
   if(!S.run)return;
   if(S.mode==='countdown'&&getCurrentT()<=0){S.t=0;S.startedAt=null;pause();return;}
-  updClock(); pushBowlState();
-  if(Math.round(getCurrentT()*2)%10===0)autosave();
+  updClock(); pushBowlState(); autosave();
 }
 
 // ── Play / Pause / Reset ──────────────────────────────────────────────────────
@@ -1422,13 +1468,23 @@ window.addEventListener('beforeunload',()=>{autosave();pushBowlState();});
 (function init(){
   const saved=loadAutosave();
   if(saved){
-    S.t=saved.t??0;S.ls=saved.ls??0;S.laps=saved.laps??[];S.mode=saved.mode??'stopwatch';S.run=false;
-    document.getElementById('btn-sw').classList.toggle('on',S.mode==='stopwatch');
-    document.getElementById('btn-cd').classList.toggle('on',S.mode==='countdown');
-    if(S.t>0)document.getElementById('lbtn').disabled=false;
-    showToast(saved.wasRunning?`> session restored (was running at ${fmt(saved.t)}) — press start to continue`:`> session restored at ${fmt(saved.t)}`);
+    S.t    = saved.t    ?? 0;
+    S.ls   = saved.ls   ?? 0;
+    S.laps = saved.laps ?? [];
+    S.mode = saved.mode ?? 'stopwatch';
+    S.run  = false;
+    S.sessionStartWall = saved.sessionStartWall ?? null;
+    document.getElementById('btn-sw').classList.toggle('on', S.mode==='stopwatch');
+    document.getElementById('btn-cd').classList.toggle('on', S.mode==='countdown');
+    if(S.t > 0) document.getElementById('lbtn').disabled = false;
+    const restoredFmt = fmt(Math.floor(S.t));
+    if(saved.wasRunning){
+      showToast(`> session restored at ${restoredFmt} (was running — press start to continue)`);
+    } else {
+      showToast(`> session restored at ${restoredFmt}`);
+    }
   }
-  pushBowlState();updClock();renderLaps();renderSess();
+  pushBowlState(); updClock(); renderLaps(); renderSess();
 })();
 </script>
 </body>
