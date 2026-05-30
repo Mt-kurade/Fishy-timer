@@ -150,6 +150,15 @@
   }
   .cal-evt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;}
   .cal-evt-time{color:var(--evt-accent,#d0d0d0);font-family:'Courier New',monospace;font-size:0.42rem;margin-top:1px;opacity:0.75;}
+  /* Inline rename input shown on dblclick */
+  .cal-evt-rename{
+    width:100%;background:rgba(0,0,0,0.5);border:none;
+    border-bottom:1px solid rgba(255,255,255,0.4);
+    color:#fff;font-family:'Times New Roman',serif;font-size:0.5rem;
+    font-weight:600;outline:none;padding:1px 2px;letter-spacing:0.03em;
+  }
+  .cal-evt[data-editing="1"]{ pointer-events:all !important; cursor:text; }
+  .cal-evt-hint{font-size:0.38rem;color:rgba(255,255,255,0.35);margin-top:2px;font-style:italic;}
   /* Gap / pause stripe */
   .cal-gap{
     position:absolute;left:2px;right:2px;
@@ -553,7 +562,9 @@ function renderCal(scrollToNow) {
       el.style.setProperty('--evt-bg',     col.bg);
       el.style.setProperty('--evt-accent', col.accent);
       el.style.setProperty('--evt-text',   col.text);
-      el.innerHTML = `<div class="cal-evt-name" id="${id}-name"></div><div class="cal-evt-time" id="${id}-time"></div>`;
+      el.innerHTML = `<div class="cal-evt-name" id="${id}-name"></div><div class="cal-evt-time" id="${id}-time"></div><div class="cal-evt-hint">dblclick to rename</div>`;
+      el.title = 'double-click to rename this block';
+      el.addEventListener('dblclick', (e)=>{ e.stopPropagation(); startCalRename(el, ev.name, id); });
       layer.appendChild(el);
     }
 
@@ -907,6 +918,8 @@ function pause(){
   S.t=getCurrentT(); S.startedAt=null; S.run=false;
   clearInterval(iv); iv=null;
   document.getElementById('sbtn').textContent='[ start ]';
+  // Keep lap button enabled while paused so user can still save a lap
+  if(S.t > 0) document.getElementById('lbtn').disabled=false;
   // Record pause event
   saveCalSegment({type:'pause', wall:Date.now()});
   stopCalLive();
@@ -923,7 +936,16 @@ function resetTimer(){
   currentLapName='study block';
   document.getElementById('lbtn').disabled=true;
   document.getElementById('lap-modal').style.display='none';
-  clearAutosave(); updClock(); renderLaps(); pushBowlState();
+  // Save the reset state (0 time, no laps) so restore knows the user reset
+  // Do NOT call clearAutosave() — that would leave nothing to restore
+  try{
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+      date: todayStr(), t: 0, savedAtWall: Date.now(),
+      wasRunning: false, mode: S.mode,
+      ls: 0, laps: [], sessionStartWall: null, wasReset: true
+    }));
+  }catch{}
+  updClock(); renderLaps(); pushBowlState();
 }
 function setMode(m){
   S.mode=m;
@@ -934,8 +956,12 @@ function setMode(m){
 
 // ── Laps ──────────────────────────────────────────────────────────────────────
 function triggerLap(){
-  if(!S.run)return; const now=getCurrentT(); const dur=now-S.ls; if(dur<1)return;
-  S.pend={start:S.ls,end:now,duration:dur};
+  // Allow lapping while running OR while paused (as long as there's elapsed time)
+  const now = getCurrentT();
+  if(now < 1) return;
+  const dur = now - S.ls;
+  if(dur < 1) return;
+  S.pend={start:S.ls, end:now, duration:dur};
   document.getElementById('mdur').textContent=fmt(dur);
   document.getElementById('linput').value='';
   document.getElementById('lap-modal').style.display='flex';
@@ -950,15 +976,17 @@ function saveLap(){
   const lapWall = Date.now();
   saveCalSegment({type:'lap', wall:lapWall, name});
   currentLapName = `block ${S.laps.length + 1}`;
-  // New block starts 1ms after so segment order is unambiguous
-  // timerAtLapStart = current timer value so live block measures elapsed within THIS lap only
-  saveCalSegment({
-    type:            'start',
-    wall:            lapWall + 1,
-    lapName:         currentLapName,
-    colorSeed:       Math.floor(Math.random() * 12),
-    timerAtLapStart: getCurrentT()
-  });
+  // Only write new 'start' segment if timer is running (not paused)
+  // If paused, the next play() will write the start segment
+  if(S.run){
+    saveCalSegment({
+      type:            'start',
+      wall:            lapWall + 1,
+      lapName:         currentLapName,
+      colorSeed:       Math.floor(Math.random() * 12),
+      timerAtLapStart: getCurrentT()
+    });
+  }
   autosave(); renderLaps(); pushBowlState();
 }
 function cancelLap(){S.pend=null;document.getElementById('lap-modal').style.display='none';}
@@ -1384,7 +1412,14 @@ function buildBowlInPip(pw){
 }
 
 // ── Keyboard ──────────────────────────────────────────────────────────────────
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)updClock();});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    // Tab hidden / computer sleeping — save immediately
+    autosave(); pushBowlState();
+  } else {
+    updClock();
+  }
+});
 document.addEventListener('keydown',e=>{
   if(document.getElementById('lap-modal').style.display!=='none'){if(e.key==='Enter')saveLap();if(e.key==='Escape')cancelLap();return;}
   if(document.getElementById('sess-modal').style.display!=='none'){if(e.key==='Escape')closeSM();return;}
@@ -1464,7 +1499,8 @@ function showToast(msg){
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-window.addEventListener('beforeunload',()=>{autosave();pushBowlState();});
+window.addEventListener('beforeunload', ()=>{ autosave(); pushBowlState(); });
+window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
 (function init(){
   const saved=loadAutosave();
   if(saved){
@@ -1486,6 +1522,62 @@ window.addEventListener('beforeunload',()=>{autosave();pushBowlState();});
   }
   pushBowlState(); updClock(); renderLaps(); renderSess();
 })();
+
+// ── Calendar block inline rename ──────────────────────────────────────────────
+function startCalRename(el, currentName, evtId) {
+  if(el.dataset.editing === '1') return;
+  el.dataset.editing = '1';
+  // Replace name div with an input
+  const nameEl = document.getElementById(`${evtId}-name`);
+  const hint   = el.querySelector('.cal-evt-hint');
+  if(!nameEl) return;
+  const inp = document.createElement('input');
+  inp.className = 'cal-evt-rename';
+  inp.value = currentName;
+  inp.maxLength = 60;
+  nameEl.replaceWith(inp);
+  if(hint) hint.style.display = 'none';
+  inp.focus(); inp.select();
+
+  function commit() {
+    const newName = inp.value.trim() || currentName;
+    el.dataset.editing = '0';
+    // Update the calendar segment storage
+    renameCalSegments(currentName, newName, evtId);
+    // Rebuild display
+    calRenderState = null;
+    renderCal();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e=>{
+    if(e.key === 'Enter')  { inp.blur(); }
+    if(e.key === 'Escape') { inp.value = currentName; inp.blur(); }
+    e.stopPropagation();
+  });
+}
+
+function renameCalSegments(oldName, newName, evtId) {
+  if(oldName === newName) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
+    const key = calDayKey(calDayOffset);
+    const segs = all[key];
+    if(!segs) return;
+    // Update lapName on start segments and name on lap segments that match
+    segs.forEach(s => {
+      if(s.type === 'start' && s.lapName === oldName) s.lapName = newName;
+      if(s.type === 'lap'   && s.name   === oldName) s.name    = newName;
+    });
+    all[key] = segs;
+    localStorage.setItem(CAL_KEY, JSON.stringify(all));
+    // Also rename in study_s (past sessions)
+    const studySessions = JSON.parse(localStorage.getItem('study_s') || '[]');
+    studySessions.forEach(sess => {
+      sess.laps.forEach(l => { if(l.name === oldName) l.name = newName; });
+    });
+    localStorage.setItem('study_s', JSON.stringify(studySessions));
+  } catch {}
+}
 </script>
 </body>
 </html>
