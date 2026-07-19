@@ -226,12 +226,140 @@
   /* si edit button */
   .si-edit{background:none;border:1px solid var(--b1);color:var(--dim2);font-family:'Times New Roman',serif;font-size:0.48rem;letter-spacing:0.08em;text-transform:uppercase;padding:2px 7px;cursor:pointer;transition:all 0.12s;margin-left:6px;}
   .si-edit:hover{border-color:var(--acc);color:var(--acc);}
+
+  /* ══════════════════════════════════════════════════════════════════════
+     STUDY TRACKER — streak badge + daily goal bar (main timer view)
+     ══════════════════════════════════════════════════════════════════════ */
+  .track-row{display:flex;align-items:center;justify-content:center;}
+  .streak-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--b1);padding:4px 11px;cursor:default;transition:border-color .12s;font-size:0.56rem;letter-spacing:0.09em;text-transform:uppercase;color:var(--dim2);}
+  .streak-chip:hover{border-color:var(--b2);}
+  .streak-chip .flame{font-size:0.68rem;line-height:1;filter:grayscale(0.15);}
+  .streak-chip b{color:var(--acc);font-weight:700;font-size:0.62rem;letter-spacing:0.02em;}
+  .goal-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;width:230px;margin-top:-0.4rem;}
+  .goal-lbl{display:flex;justify-content:space-between;width:100%;font-size:0.5rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim2);cursor:pointer;transition:color .12s;}
+  .goal-lbl:hover{color:var(--acc);}
+  .goal-track{width:100%;height:3px;background:var(--s2);border:1px solid var(--b1);position:relative;overflow:hidden;}
+  .goal-fill{height:100%;width:0%;background:var(--acc2);transition:width .4s ease;}
+  .goal-fill.done{background:var(--text);}
+
+  /* ══════════════════════════════════════════════════════════════════════
+     Corner nav — switch between timer and stats page
+     ══════════════════════════════════════════════════════════════════════ */
+  .corner-nav{position:fixed;top:1.1rem;right:1.3rem;z-index:50;}
+  body.stats-view .app{display:none;}
+  body.stats-view .corner-nav .to-stats{display:none;}
+  body:not(.stats-view) .corner-nav .to-timer{display:none;}
+
+  /* ══════════════════════════════════════════════════════════════════════
+     STATS PAGE
+     ══════════════════════════════════════════════════════════════════════ */
+  #stats-page{display:none;position:relative;z-index:1;min-height:100vh;padding:4.4rem 3rem 4rem;}
+  body.stats-view #stats-page{display:block;}
+  .stats-shell{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:1.3rem;}
+  .stats-hd{margin-bottom:0.1rem;}
+  .stats-hd h1{font-family:'Times New Roman',Times,serif;font-size:1.25rem;font-weight:700;color:var(--text);letter-spacing:0.01em;}
+  .stats-hd span{font-size:0.56rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);}
+
+  .stat-cards-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .stat-card{border:1px solid var(--b1);background:var(--s1);padding:0.9rem 1.1rem;display:flex;flex-direction:column;gap:8px;}
+  .stat-card .sc-top{display:flex;align-items:center;gap:7px;font-size:0.5rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);}
+  .stat-card .sc-ic{width:16px;height:16px;border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:var(--acc2);flex-shrink:0;}
+  .stat-card .sc-val{font-size:1.15rem;font-weight:700;color:var(--text);letter-spacing:-0.01em;}
+
+  .panel{border:1px solid var(--b1);background:var(--s1);}
+  .panel-hd{padding:0.9rem 1.1rem;border-bottom:1px solid var(--b1);display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+  .panel-hd h2{font-size:0.7rem;font-weight:700;letter-spacing:0.04em;color:var(--text);}
+  .panel-hd .ph-sub{font-size:0.5rem;letter-spacing:0.08em;color:var(--dim2);margin-top:3px;text-transform:uppercase;}
+  .panel-body{padding:1.1rem 1.1rem 1.2rem;}
+
+  .seg-tabs{display:flex;gap:2px;border:1px solid var(--b1);padding:2px;height:fit-content;flex-wrap:wrap;}
+  .seg-tabs button{background:none;border:none;font-family:'Times New Roman',Times,serif;font-size:0.5rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);padding:4px 9px;cursor:pointer;transition:all .12s;white-space:nowrap;}
+  .seg-tabs button.on{background:var(--s2);color:var(--text);}
+  .seg-tabs button:hover{color:var(--acc);}
+
+  .heat-info{border:1px solid var(--b1);padding:0.5rem 0.85rem;font-size:0.48rem;letter-spacing:0.05em;color:var(--dim2);min-width:140px;text-align:right;line-height:1.65;}
+  .heat-info b{color:var(--acc);font-size:0.6rem;display:block;font-weight:700;letter-spacing:0.06em;text-transform:capitalize;}
+  .heat-info .hd2{color:var(--text);font-size:0.53rem;}
+
+  .heatmap-scroll{overflow-x:auto;padding-bottom:4px;}
+  .heatmap-scroll::-webkit-scrollbar{height:4px;}
+  .heatmap-scroll::-webkit-scrollbar-thumb{background:var(--b1);}
+  .heatmap-months{display:grid;grid-auto-flow:column;gap:3px;margin-left:1px;margin-bottom:4px;height:11px;overflow:visible;}
+  .heatmap-months span{font-size:0.44rem;color:var(--dim2);letter-spacing:0.03em;white-space:nowrap;overflow:visible;}
+  .heatmap-grid{display:grid;grid-template-rows:repeat(7,11px);grid-auto-flow:column;gap:3px;width:fit-content;}
+  .heat-cell{width:11px;height:11px;background:var(--s2);border-radius:2px;cursor:default;transition:outline .1s;}
+  .heat-cell[data-has="1"]{cursor:pointer;}
+  .heat-cell:hover{outline:1px solid var(--b2);outline-offset:1px;}
+  .heat-cell.h0{background:var(--s2);}
+  .heat-cell.h1{background:#3a3a3a;}
+  .heat-cell.h2{background:#5c5c5c;}
+  .heat-cell.h3{background:#8c8c8c;}
+  .heat-cell.h4{background:#d8d8d8;}
+  .heat-cell.future{background:transparent;cursor:default;}
+
+  .heat-foot{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:0.8rem;font-size:0.46rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim2);}
+  .heat-foot .dots{display:flex;gap:3px;}
+  .heat-foot .dots span{width:9px;height:9px;border-radius:2px;}
+
+  .analysis-layout{display:flex;gap:2.4rem;flex-wrap:wrap;}
+  .donut-col{flex:0 0 220px;display:flex;flex-direction:column;gap:1.1rem;}
+  .donut-svg-wrap{display:flex;justify-content:center;}
+  .donut-legend{display:flex;flex-direction:column;gap:7px;max-height:190px;overflow-y:auto;}
+  .donut-legend::-webkit-scrollbar{width:2px;}
+  .donut-legend::-webkit-scrollbar-thumb{background:var(--b1);}
+  .leg-row{display:flex;align-items:center;gap:8px;font-size:0.58rem;}
+  .leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .leg-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.02em;}
+  .leg-hrs{color:var(--dim);font-size:0.52rem;width:42px;text-align:right;}
+  .leg-pct{color:var(--acc);font-weight:700;width:32px;text-align:right;font-size:0.54rem;}
+
+  .chart-col{flex:1;min-width:320px;display:flex;flex-direction:column;gap:1.1rem;}
+  .range-nav{display:flex;align-items:center;gap:8px;font-size:0.54rem;color:var(--dim2);letter-spacing:0.06em;justify-content:flex-end;}
+  .range-nav button{background:none;border:1px solid var(--b1);color:var(--dim);font-family:'Times New Roman',Times,serif;font-size:0.6rem;padding:2px 9px;cursor:pointer;transition:all .12s;}
+  .range-nav button:hover{border-color:var(--b2);color:var(--acc);}
+  .range-nav .rlabel{color:var(--text);min-width:110px;text-align:center;}
+
+  .summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .summary-box{border:1px solid var(--b1);padding:0.6rem 0.8rem;}
+  .summary-box .sb-lbl{font-size:0.46rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);margin-bottom:4px;}
+  .summary-box .sb-val{font-size:0.95rem;font-weight:700;color:var(--text);}
+
+  .bar-chart{display:flex;align-items:flex-end;gap:6px;height:160px;padding-top:1.4rem;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:5px;min-width:0;}
+  .bar-total{font-size:0.44rem;color:var(--dim2);letter-spacing:0.02em;white-space:nowrap;}
+  .bar-stack{width:100%;max-width:30px;display:flex;flex-direction:column-reverse;overflow:hidden;border-radius:2px 2px 0 0;}
+  .bar-seg{width:100%;}
+  .bar-daylbl{font-size:0.46rem;letter-spacing:0.05em;text-transform:uppercase;color:var(--dim2);white-space:nowrap;}
+  .bar-empty{width:100%;max-width:30px;height:2px;background:var(--b1);align-self:flex-end;}
+
+  .no-data-msg{color:var(--dim2);font-size:0.56rem;letter-spacing:0.06em;text-align:center;padding:2rem 0;}
+
+  /* Quick tag chips — lap naming modal */
+  .tag-chips{display:flex;flex-wrap:wrap;gap:6px;margin:-0.55rem 0 1rem;}
+  .tag-chip{border:1px solid var(--b1);background:var(--s2);color:var(--dim);font-family:'Times New Roman',Times,serif;font-size:0.53rem;letter-spacing:0.03em;padding:3px 9px;cursor:pointer;transition:all .12s;}
+  .tag-chip:hover{border-color:var(--acc2);color:var(--acc);}
+
+  @media (max-width:880px){
+    #stats-page{padding:4.2rem 1rem 3rem;}
+    .stat-cards-row{grid-template-columns:repeat(2,1fr);}
+    .analysis-layout{flex-direction:column;}
+    .donut-col{flex:none;}
+  }
 </style>
 </head>
 <body>
 <div id="ascii-sky"></div>
+<div class="corner-nav">
+  <button class="btn to-stats" onclick="showStats()">[ // stats ]</button>
+  <button class="btn to-timer" onclick="showTimer()">[ ‹ back to timer ]</button>
+</div>
 <div class="app">
   <main class="main">
+    <div class="track-row">
+      <div class="streak-chip" id="streak-chip" title="consecutive days with study time logged">
+        <span class="flame">🔥</span><span>streak</span><b id="streak-val">0</b><span>d</span>
+      </div>
+    </div>
     <div class="mode-row">
       <button class="mbtn on" id="btn-sw" onclick="setMode('stopwatch')">stopwatch</button>
       <span class="mode-sep">/</span>
@@ -242,6 +370,12 @@
         <span id="seg-m">00</span><span class="sep">:</span><span id="seg-s">00</span>
       </div>
       <div class="ticker" id="ticker"></div>
+    </div>
+    <div class="goal-wrap" id="goal-wrap">
+      <div class="goal-lbl" onclick="openGoalModal()" title="click to change your daily goal">
+        <span>daily goal</span><span id="goal-text">0 / 120 min</span>
+      </div>
+      <div class="goal-track"><div class="goal-fill" id="goal-fill"></div></div>
     </div>
     <div class="controls">
       <button class="btn red" onclick="resetTimer()">[ reset ]</button>
@@ -258,6 +392,7 @@
       <span><span class="k">↑↓</span> ±60s</span>
       <span><span class="k">F</span> fullscreen</span>
       <span><span class="k">P</span> pop-out</span>
+      <span><span class="k">S</span> stats</span>
     </div>
   </main>
 
@@ -298,15 +433,131 @@
   </aside>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     STATS PAGE
+     ══════════════════════════════════════════════════════════════════════ -->
+<div id="stats-page">
+  <div class="stats-shell">
+
+    <div class="stats-hd">
+      <h1>// study stats</h1>
+      <span>your study activity, at a glance</span>
+    </div>
+
+    <div class="stat-cards-row">
+      <div class="stat-card">
+        <div class="sc-top"><span class="sc-ic">Σ</span> sessions</div>
+        <div class="sc-val" id="stat-sessions">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-top"><span class="sc-ic">◷</span> study time</div>
+        <div class="sc-val" id="stat-time">0m</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-top"><span class="sc-ic" style="border:none;">🔥</span> streak</div>
+        <div class="sc-val" id="stat-streak">0 days</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-top"><span class="sc-ic">◆</span> best day</div>
+        <div class="sc-val" id="stat-best">0m</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd">
+        <div>
+          <h2>// study activity</h2>
+          <div class="ph-sub" id="heat-sub">0 sessions · 0 day streak</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div class="heat-info" id="heat-info">
+            <b id="hi-date">today</b>
+            <div class="hd2" id="hi-sessions">0 sessions</div>
+            <div id="hi-time">0m studied</div>
+          </div>
+          <div class="seg-tabs" id="year-tabs"></div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="heatmap-scroll">
+          <div id="heatmap-months" class="heatmap-months"></div>
+          <div id="heatmap-grid" class="heatmap-grid"></div>
+        </div>
+        <div class="heat-foot">
+          <span>less</span>
+          <div class="dots">
+            <span style="background:var(--s2)"></span>
+            <span style="background:#3a3a3a"></span>
+            <span style="background:#5c5c5c"></span>
+            <span style="background:#8c8c8c"></span>
+            <span style="background:#d8d8d8"></span>
+          </div>
+          <span>more</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd">
+        <div>
+          <h2>// study analysis</h2>
+          <div class="ph-sub">tag breakdown</div>
+        </div>
+        <div class="seg-tabs" id="period-tabs">
+          <button data-p="last7" onclick="setStatsPeriod('last7')">last 7</button>
+          <button data-p="week" class="on" onclick="setStatsPeriod('week')">weekly</button>
+          <button data-p="month" onclick="setStatsPeriod('month')">monthly</button>
+          <button data-p="year" onclick="setStatsPeriod('year')">yearly</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="range-nav" style="margin-bottom:0.9rem;">
+          <button onclick="shiftStatsRange(-1)">‹</button>
+          <span class="rlabel" id="range-label">—</span>
+          <button onclick="shiftStatsRange(1)">›</button>
+        </div>
+        <div class="summary-row">
+          <div class="summary-box"><div class="sb-lbl">hours</div><div class="sb-val" id="sum-hours">0</div></div>
+          <div class="summary-box"><div class="sb-lbl">sessions</div><div class="sb-val" id="sum-sessions">0</div></div>
+          <div class="summary-box"><div class="sb-lbl">avg / day</div><div class="sb-val" id="sum-avg">0h</div></div>
+        </div>
+        <div class="analysis-layout" style="margin-top:1.3rem;">
+          <div class="donut-col">
+            <div class="donut-svg-wrap" id="donut-wrap"></div>
+            <div class="donut-legend" id="donut-legend"></div>
+          </div>
+          <div class="chart-col">
+            <div class="bar-chart" id="bar-chart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- lap naming modal -->
 <div class="ovl" id="lap-modal" style="display:none;">
   <div class="modal">
     <h3>// name this block</h3>
     <p>duration: <span class="m" id="mdur">—</span></p>
     <input type="text" id="linput" placeholder="physics / chapter 5 / review ..." maxlength="40"/>
+    <div class="tag-chips" id="tag-chips"></div>
     <div class="macts">
       <button class="btn" onclick="cancelLap()">[ cancel ]</button>
       <button class="btn main" onclick="saveLap()">[ save ]</button>
+    </div>
+  </div>
+</div>
+<!-- daily goal modal -->
+<div class="ovl" id="goal-modal" style="display:none;">
+  <div class="modal">
+    <h3>// daily study goal</h3>
+    <p>set a target study time per day, in minutes.</p>
+    <input type="number" id="goal-input" min="5" max="1440" step="5" placeholder="120"/>
+    <div class="macts">
+      <button class="btn" onclick="closeGoalModal()">[ cancel ]</button>
+      <button class="btn main" onclick="saveGoal()">[ save ]</button>
     </div>
   </div>
 </div>
@@ -382,7 +633,7 @@ function saveCalSegment(seg) {
     if (!all[key]) all[key] = [];
     all[key].push(seg);
     const keys = Object.keys(all).sort();
-    if (keys.length > 60) delete all[keys[0]];
+    if (keys.length > 200) delete all[keys[0]];
     localStorage.setItem(CAL_KEY, JSON.stringify(all));
   } catch {}
 }
@@ -810,7 +1061,7 @@ function processCmd(){
         const p = c.payload;
         S.laps.push({...p, ci: S.laps.length % LC.length});
         S.ls = p.end;
-        renderLaps(); autosave(); pushBowlState();
+        renderLaps(); autosave(); pushBowlState(); refreshTracker();
         break;
     }
   }catch{}
@@ -900,7 +1151,7 @@ function updClock(){
 function tick(){
   if(!S.run)return;
   if(S.mode==='countdown'&&getCurrentT()<=0){S.t=0;S.startedAt=null;pause();return;}
-  updClock(); pushBowlState(); autosave();
+  updClock(); pushBowlState(); autosave(); renderGoalBar();
 }
 
 // ── Play / Pause / Reset ──────────────────────────────────────────────────────
@@ -947,7 +1198,7 @@ function resetTimer(){
       ls: 0, laps: [], sessionStartWall: null, wasReset: true
     }));
   }catch{}
-  updClock(); renderLaps(); pushBowlState();
+  updClock(); renderLaps(); pushBowlState(); refreshTracker();
 }
 function setMode(m){
   S.mode=m;
@@ -967,6 +1218,7 @@ function triggerLap(){
   document.getElementById('mdur').textContent=fmt(dur);
   document.getElementById('linput').value='';
   document.getElementById('lap-modal').style.display='flex';
+  renderTagChips();
   setTimeout(()=>document.getElementById('linput').focus(),40);
 }
 function saveLap(){
@@ -989,7 +1241,7 @@ function saveLap(){
       timerAtLapStart: getCurrentT()
     });
   }
-  autosave(); renderLaps(); pushBowlState();
+  autosave(); renderLaps(); pushBowlState(); refreshTracker();
 }
 function cancelLap(){S.pend=null;document.getElementById('lap-modal').style.display='none';}
 function clearLaps(){
@@ -1048,7 +1300,7 @@ function saveSess(){
       total: calDayTotalFromSegments(sk)
     });
   }
-  localStorage.setItem('study_s', JSON.stringify(all.slice(0, 60)));
+  localStorage.setItem('study_s', JSON.stringify(all.slice(0, 400)));
   renderSess();
 }
 
@@ -1072,7 +1324,7 @@ function calDayTotalFromSegments(dayKeyStr) {
   }
   return Math.round(total / 1000);  // return seconds, same unit as lap.duration
 }
-function clearSessions(){if(!confirm('delete all saved sessions?'))return;localStorage.removeItem('study_s');renderSess();}
+function clearSessions(){if(!confirm('delete all saved sessions?'))return;localStorage.removeItem('study_s');renderSess();refreshTracker();}
 function renderSess(){
   const el=document.getElementById('sess-list');const all=getS();
   if(!all.length){el.innerHTML='<div class="no-sess">&gt; no saved sessions</div>';return;}
@@ -1239,6 +1491,7 @@ function saveEditModal() {
   closeEditModal();
   renderSess();
   renderLaps();  // refresh today's laps view if editing today
+  refreshTracker();
 }
 
 // ── Document PiP / popup ──────────────────────────────────────────────────────
@@ -1425,12 +1678,15 @@ document.addEventListener('visibilitychange',()=>{
 document.addEventListener('keydown',e=>{
   if(document.getElementById('lap-modal').style.display!=='none'){if(e.key==='Enter')saveLap();if(e.key==='Escape')cancelLap();return;}
   if(document.getElementById('sess-modal').style.display!=='none'){if(e.key==='Escape')closeSM();return;}
+  if(document.getElementById('goal-modal').style.display!=='none'){return;} // has its own Enter/Escape listener
+  if(document.body.classList.contains('stats-view')){if(e.key==='Escape')showTimer();return;}
   switch(e.key){
     case ' ':e.preventDefault();toggleTimer();break;
     case 'l':case 'L':triggerLap();break;
     case 'r':case 'R':resetTimer();break;
     case 'f':case 'F':toggleFS();break;
     case 'p':case 'P':toggleBowl();break;
+    case 's':case 'S':showStats();break;
     case 'ArrowUp':
       e.preventDefault();
       if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}
@@ -1500,6 +1756,450 @@ function showToast(msg){
   t.textContent=msg;t.style.opacity='1';clearTimeout(t._tid);t._tid=setTimeout(()=>{t.style.opacity='0';},3500);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDY TRACKER — daily goal, streak, tag stats, stats dashboard page
+// ─────────────────────────────────────────────────────────────────────────────
+const GOAL_KEY = 'study_goal_min';
+
+function getGoalMin(){
+  const v = parseInt(localStorage.getItem(GOAL_KEY), 10);
+  return (Number.isFinite(v) && v > 0) ? v : 120;
+}
+function setGoalMin(v){ try{ localStorage.setItem(GOAL_KEY, String(v)); }catch{} }
+
+function openGoalModal(){
+  document.getElementById('goal-input').value = getGoalMin();
+  document.getElementById('goal-modal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('goal-input').focus(), 30);
+}
+function closeGoalModal(){ document.getElementById('goal-modal').style.display = 'none'; }
+function saveGoal(){
+  const v = parseInt(document.getElementById('goal-input').value, 10);
+  if(Number.isFinite(v) && v > 0) setGoalMin(Math.min(v, 1440));
+  closeGoalModal();
+  refreshTracker();
+  showToast(`> daily goal set to ${getGoalMin()} min`);
+}
+document.getElementById('goal-input').addEventListener('keydown', e=>{
+  if(e.key==='Enter') saveGoal();
+  if(e.key==='Escape') closeGoalModal();
+});
+
+// Today's total, live — sourced from calendar segments (includes the
+// currently-running block, and is immune to the fact that S.laps hasn't
+// been flushed into study_s yet).
+function todaySeconds(){ return calDayTotalFromSegments(todayKey()); }
+
+function keyToDate(k){ const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); }
+function dateToKey(d){ return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+
+// Map of "Y-M-D" -> seconds studied that day, across all stored history.
+// Today's entry is always overridden with the live value.
+function dayTotalsMap(){
+  const all = getS();
+  const map = {};
+  all.forEach(s => { map[dayKey(s.date)] = s.total || 0; });
+  map[todayKey()] = todaySeconds();
+  return map;
+}
+
+function daySessionCount(key){
+  const all = getS();
+  const entry = all.find(s => dayKey(s.date) === key);
+  let count = entry ? entry.laps.length : 0;
+  if(key === todayKey()) count += S.laps.length;
+  return count;
+}
+
+// ── Streak ───────────────────────────────────────────────────────────────────
+function computeStreak(){
+  const map = dayTotalsMap();
+  let cursor = new Date();
+  // Today doesn't break the streak until the day is over — if nothing is
+  // logged yet today, start the backward walk from yesterday.
+  if(!(map[todayKey()] > 0)) cursor.setDate(cursor.getDate() - 1);
+  let streak = 0;
+  while(true){
+    const k = dateToKey(cursor);
+    if(map[k] > 0){ streak++; cursor.setDate(cursor.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
+function computeLongestStreak(){
+  const map = dayTotalsMap();
+  const keys = Object.keys(map).filter(k => map[k] > 0).sort((a,b)=>keyToDate(a)-keyToDate(b));
+  if(!keys.length) return 0;
+  let best = 1, cur = 1;
+  for(let i=1;i<keys.length;i++){
+    const diffDays = Math.round((keyToDate(keys[i]) - keyToDate(keys[i-1])) / 86400000);
+    if(diffDays === 1){ cur++; best = Math.max(best, cur); } else cur = 1;
+  }
+  return best;
+}
+function computeBestDaySeconds(){
+  const map = dayTotalsMap();
+  return Math.max(0, ...Object.values(map));
+}
+function computeTotals(){
+  const map = dayTotalsMap();
+  const all = getS();
+  const seconds  = Object.values(map).reduce((a,b)=>a+b, 0);
+  const sessions = all.reduce((a,s)=>a+(s.laps ? s.laps.length : 0), 0) + S.laps.length;
+  return { sessions, seconds };
+}
+
+function fmtHM(seconds){
+  const totalMin = Math.round(Math.max(0,seconds)/60);
+  const h = Math.floor(totalMin/60), m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function renderStreakBadge(){
+  const el = document.getElementById('streak-val');
+  if(el) el.textContent = computeStreak();
+}
+function renderGoalBar(){
+  const fillEl = document.getElementById('goal-fill');
+  const txtEl  = document.getElementById('goal-text');
+  if(!fillEl || !txtEl) return;
+  const goal = getGoalMin();
+  const doneMin = todaySeconds() / 60;
+  const pct = Math.max(0, Math.min(100, (doneMin / goal) * 100));
+  fillEl.style.width = pct + '%';
+  fillEl.classList.toggle('done', doneMin >= goal);
+  txtEl.textContent = `${Math.floor(doneMin)} / ${goal} min`;
+}
+function refreshTracker(){
+  renderStreakBadge();
+  renderGoalBar();
+  if(document.body.classList.contains('stats-view')) renderStatsPage();
+}
+
+// ── Tags — normalize free-text lap names into stable, colour-coded tags ──────
+function tagKey(name){
+  const n = (name || '').trim();
+  if(!n || /^block\s*\d+$/i.test(n)) return '__no_tag__';
+  return n.toLowerCase();
+}
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))|0; } return Math.abs(h); }
+function tagColorFor(key){
+  if(key === '__no_tag__') return { bg:'rgba(255,255,255,0.12)', accent:'#888', text:'#aaa' };
+  return CAL_COLORS[hashStr(key) % CAL_COLORS.length];
+}
+
+// All logged blocks (laps) whose day falls within [startDate,endDate] (inclusive, by day).
+// Includes the current in-progress session's unsaved laps if today is in range.
+function lapsInRange(startDate, endDate){
+  const sT = new Date(startDate); sT.setHours(0,0,0,0);
+  const eT = new Date(endDate);   eT.setHours(0,0,0,0);
+  const out = [];
+  getS().forEach(s => {
+    const dK = dayKey(s.date), dT = keyToDate(dK);
+    if(dT >= sT && dT <= eT) (s.laps||[]).forEach(l => out.push(l));
+  });
+  const tk = todayKey(), tD = keyToDate(tk);
+  if(tD >= sT && tD <= eT) S.laps.forEach(l => out.push(l));
+  return out;
+}
+
+function aggregateTags(laps){
+  const agg = {};
+  laps.forEach(l => {
+    const k = tagKey(l.name);
+    if(!agg[k]) agg[k] = { seconds:0, count:0, names:{} };
+    agg[k].seconds += (l.duration || 0);
+    agg[k].count++;
+    const nm = (l.name || '').trim() || 'No Tag';
+    agg[k].names[nm] = (agg[k].names[nm] || 0) + 1;
+  });
+  return Object.entries(agg).map(([key, v]) => {
+    const display = key === '__no_tag__' ? 'No Tag' : Object.entries(v.names).sort((a,b)=>b[1]-a[1])[0][0];
+    return { key, display, seconds: v.seconds, count: v.count, col: tagColorFor(key) };
+  }).sort((a,b)=>b.seconds-a.seconds);
+}
+
+// ── Quick tag chips (lap modal) — nudges people toward consistent tagging ────
+function renderTagChips(){
+  const wrap = document.getElementById('tag-chips');
+  if(!wrap) return;
+  const freq = {}, order = [];
+  const record = nm => { const t=nm.trim(); if(!t || /^block\s*\d+$/i.test(t)) return; if(!(t in freq)) order.push(t); freq[t]=(freq[t]||0)+1; };
+  getS().forEach(s => (s.laps||[]).forEach(l => record(l.name || '')));
+  S.laps.forEach(l => record(l.name || ''));
+  const top = order.sort((a,b)=>freq[b]-freq[a]).slice(0, 6);
+  wrap.innerHTML = top.length ? top.map(n =>
+    `<button type="button" class="tag-chip" onclick="pickTagChip(this.textContent)">${esc(n)}</button>`
+  ).join('') : '';
+}
+function pickTagChip(name){
+  const inp = document.getElementById('linput');
+  inp.value = name; inp.focus();
+}
+
+// ── Stats page navigation ─────────────────────────────────────────────────────
+function showStats(){ document.body.classList.add('stats-view'); renderStatsPage(); }
+function showTimer(){ document.body.classList.remove('stats-view'); }
+
+// ── Analysis period state ─────────────────────────────────────────────────────
+let statsPeriod = 'week';   // 'last7' | 'week' | 'month' | 'year'
+let statsOffset = 0;        // periods back (negative) / forward (positive) from current
+let statsYear   = new Date().getFullYear();
+let heatMode    = 'last365'; // 'last365' | 'year'
+
+function setStatsPeriod(p){
+  statsPeriod = p; statsOffset = 0;
+  document.querySelectorAll('#period-tabs button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  renderAnalysis();
+}
+function shiftStatsRange(dir){ statsOffset += dir; renderAnalysis(); }
+
+function statsRange(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(statsPeriod === 'last7'){
+    const end = new Date(today); end.setDate(end.getDate() + statsOffset*7);
+    const start = new Date(end); start.setDate(start.getDate() - 6);
+    return { start, end, days: 7 };
+  }
+  if(statsPeriod === 'week'){
+    const ref = new Date(today); ref.setDate(ref.getDate() + statsOffset*7);
+    const dow = (ref.getDay() + 6) % 7; // 0 = Monday
+    const start = new Date(ref); start.setDate(start.getDate() - dow);
+    const end = new Date(start); end.setDate(end.getDate() + 6);
+    return { start, end, days: 7 };
+  }
+  if(statsPeriod === 'month'){
+    const ref = new Date(today.getFullYear(), today.getMonth() + statsOffset, 1);
+    const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    const end   = new Date(ref.getFullYear(), ref.getMonth()+1, 0);
+    return { start, end, days: end.getDate() };
+  }
+  const y = today.getFullYear() + statsOffset;
+  const start = new Date(y,0,1), end = new Date(y,11,31);
+  const isLeap = (y%4===0 && y%100!==0) || y%400===0;
+  return { start, end, days: isLeap ? 366 : 365 };
+}
+
+function fmtRangeLabel(r){
+  const opt = {month:'short', day:'numeric'};
+  if(statsPeriod === 'year') return String(r.start.getFullYear());
+  if(statsPeriod === 'month') return r.start.toLocaleDateString(undefined,{month:'long', year:'numeric'});
+  const sameYear = r.start.getFullYear() === r.end.getFullYear();
+  return `${r.start.toLocaleDateString(undefined,opt)} – ${r.end.toLocaleDateString(undefined, sameYear?opt:{...opt,year:'numeric'})}`;
+}
+
+// ── Stat cards ─────────────────────────────────────────────────────────────
+function renderStatCards(){
+  const { sessions, seconds } = computeTotals();
+  const streak = computeStreak();
+  document.getElementById('stat-sessions').textContent = sessions;
+  document.getElementById('stat-time').textContent     = fmtHM(seconds);
+  document.getElementById('stat-streak').textContent   = `${streak} day${streak===1?'':'s'}`;
+  document.getElementById('stat-best').textContent     = fmtHM(computeBestDaySeconds());
+}
+
+// ── Heatmap ──────────────────────────────────────────────────────────────────
+function renderYearTabs(){
+  const years = new Set([new Date().getFullYear()]);
+  getS().forEach(s => years.add(keyToDate(dayKey(s.date)).getFullYear()));
+  const sorted = [...years].sort((a,b)=>b-a);
+  let html = `<button class="${heatMode==='last365'?'on':''}" onclick="setHeatMode('last365')">last year</button>`;
+  sorted.forEach(y => { html += `<button class="${heatMode==='year'&&statsYear===y?'on':''}" onclick="setHeatMode('year',${y})">${y}</button>`; });
+  document.getElementById('year-tabs').innerHTML = html;
+}
+function setHeatMode(mode, year){
+  heatMode = mode;
+  if(mode === 'year') statsYear = year;
+  renderYearTabs();
+  renderHeatmap();
+}
+function heatLevel(seconds){
+  const min = seconds/60;
+  if(min <= 0) return 0;
+  if(min < 30) return 1;
+  if(min < 90) return 2;
+  if(min < 180) return 3;
+  return 4;
+}
+function renderHeatmap(){
+  const map = dayTotalsMap();
+  const today = new Date(); today.setHours(0,0,0,0);
+  let start, end;
+  if(heatMode === 'last365'){
+    end = new Date(today);
+    start = new Date(today); start.setDate(start.getDate() - 364);
+  } else {
+    start = new Date(statsYear, 0, 1);
+    end   = new Date(statsYear, 11, 31);
+  }
+  const alignStart = new Date(start);
+  alignStart.setDate(alignStart.getDate() - ((alignStart.getDay()+6)%7)); // back to Monday
+
+  const cells = [];
+  let cursor = new Date(alignStart);
+  while(cursor <= end){
+    const inRange  = cursor >= start && cursor <= end;
+    const isFuture = cursor > today;
+    const k = dateToKey(cursor);
+    cells.push({ date:new Date(cursor), key:k, seconds: inRange ? (map[k]||0) : 0, inRange, isFuture });
+    cursor.setDate(cursor.getDate()+1);
+  }
+  while(cells.length % 7 !== 0) cells.push({ date:null, key:null, seconds:0, inRange:false, isFuture:true });
+
+  const weeks = [];
+  for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
+
+  const monthsEl = document.getElementById('heatmap-months');
+  const gridEl   = document.getElementById('heatmap-grid');
+  monthsEl.style.gridTemplateColumns = `repeat(${weeks.length},11px)`;
+  gridEl.style.gridTemplateColumns   = `repeat(${weeks.length},11px)`;
+
+  let monthsHTML = '', lastMonth = -1;
+  weeks.forEach(w => {
+    const firstValid = w.find(c => c.date);
+    const m = firstValid ? firstValid.date.getMonth() : -1;
+    if(m !== -1 && m !== lastMonth && firstValid.date.getDate() <= 7){
+      monthsHTML += `<span>${firstValid.date.toLocaleDateString(undefined,{month:'short'})}</span>`;
+      lastMonth = m;
+    } else monthsHTML += `<span></span>`;
+  });
+  monthsEl.innerHTML = monthsHTML;
+
+  let cellsHTML = '';
+  weeks.forEach(w => w.forEach(c => {
+    if(!c.date || !c.inRange || c.isFuture){
+      cellsHTML += `<div class="heat-cell future"></div>`;
+    } else {
+      const lvl = heatLevel(c.seconds);
+      const has = c.seconds > 0 ? '1' : '0';
+      const label = c.date.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+      cellsHTML += `<div class="heat-cell h${lvl}" data-has="${has}" title="${label} · ${fmtHM(c.seconds)}"
+        onmouseenter="hoverHeatCell('${c.key}')" onclick="clickHeatCell('${c.key}')"></div>`;
+    }
+  }));
+  gridEl.innerHTML = cellsHTML;
+
+  const { sessions } = computeTotals();
+  document.getElementById('heat-sub').textContent = `${sessions} session${sessions===1?'':'s'} · ${computeStreak()} day streak`;
+  hoverHeatCell(todayKey());
+}
+function hoverHeatCell(key){
+  const map = dayTotalsMap();
+  const secs = map[key] || 0;
+  const isToday = key === todayKey();
+  const d = keyToDate(key);
+  const sessCount = daySessionCount(key);
+  document.getElementById('hi-date').textContent = isToday ? 'today' : d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('hi-sessions').textContent = `${sessCount} session${sessCount===1?'':'s'}`;
+  document.getElementById('hi-time').textContent = `${fmtHM(secs)} studied`;
+}
+function clickHeatCell(key){
+  const idx = getS().findIndex(s => dayKey(s.date) === key);
+  if(idx >= 0) viewSess(idx); else hoverHeatCell(key);
+}
+
+// ── Study analysis: donut + stacked bar chart ─────────────────────────────────
+function renderAnalysis(){
+  const r = statsRange();
+  document.getElementById('range-label').textContent = fmtRangeLabel(r);
+
+  const laps = lapsInRange(r.start, r.end);
+  const totalSeconds = laps.reduce((a,l)=>a+(l.duration||0), 0);
+  const totalHours = totalSeconds/3600;
+
+  document.getElementById('sum-hours').textContent    = totalHours.toFixed(1);
+  document.getElementById('sum-sessions').textContent = laps.length;
+  document.getElementById('sum-avg').textContent      = `${(totalHours / r.days).toFixed(1)}h`;
+
+  renderDonut(aggregateTags(laps), totalSeconds);
+  renderBarChart(r);
+}
+function renderDonut(tags, totalSeconds){
+  const wrap = document.getElementById('donut-wrap');
+  const legend = document.getElementById('donut-legend');
+  if(!tags.length || totalSeconds <= 0){
+    wrap.innerHTML = `<svg width="170" height="170" viewBox="0 0 170 170"><circle cx="85" cy="85" r="66" fill="none" stroke="var(--b1)" stroke-width="18"/></svg>`;
+    legend.innerHTML = `<div class="no-data-msg">no study data in this period</div>`;
+    return;
+  }
+  const R=66, CX=85, CY=85, CIRC=2*Math.PI*R;
+  let offset = 0, segsHTML = '';
+  tags.forEach(t => {
+    const len = (t.seconds/totalSeconds) * CIRC;
+    segsHTML += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${t.col.accent}" stroke-width="18"
+      stroke-dasharray="${len} ${CIRC-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${CX} ${CY})"/>`;
+    offset += len;
+  });
+  wrap.innerHTML = `<svg width="170" height="170" viewBox="0 0 170 170">${segsHTML}
+    <circle cx="${CX}" cy="${CY}" r="${R-12}" fill="var(--s1)"/>
+    <text x="${CX}" y="${CY-3}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="17" font-weight="700" fill="var(--text)">${fmtHM(totalSeconds)}</text>
+    <text x="${CX}" y="${CY+13}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="7.5" letter-spacing="1.5" fill="var(--dim2)">TOTAL</text>
+  </svg>`;
+  legend.innerHTML = tags.map(t => {
+    const pct = Math.round((t.seconds/totalSeconds)*100);
+    return `<div class="leg-row">
+      <span class="leg-dot" style="background:${t.col.accent}"></span>
+      <span class="leg-name">${esc(t.display)}</span>
+      <span class="leg-hrs">${(t.seconds/3600).toFixed(1)}h</span>
+      <span class="leg-pct">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+function buildBuckets(r){
+  const buckets = [];
+  if(statsPeriod === 'week' || statsPeriod === 'last7'){
+    let d = new Date(r.start);
+    while(d <= r.end){ buckets.push({ start:new Date(d), end:new Date(d), label:d.toLocaleDateString(undefined,{weekday:'short'}) }); d.setDate(d.getDate()+1); }
+  } else if(statsPeriod === 'month'){
+    let d = new Date(r.start);
+    while(d <= r.end){
+      const dn = d.getDate();
+      buckets.push({ start:new Date(d), end:new Date(d), label: (dn % 5 === 1 || dn === r.days) ? String(dn) : '' });
+      d.setDate(d.getDate()+1);
+    }
+  } else {
+    for(let m=0;m<12;m++){
+      const start = new Date(r.start.getFullYear(), m, 1), end = new Date(r.start.getFullYear(), m+1, 0);
+      buckets.push({ start, end, label: start.toLocaleDateString(undefined,{month:'short'}) });
+    }
+  }
+  buckets.forEach(b => {
+    const laps = lapsInRange(b.start, b.end);
+    b.tags = aggregateTags(laps);
+    b.seconds = laps.reduce((a,l)=>a+(l.duration||0), 0);
+  });
+  return buckets;
+}
+function renderBarChart(r){
+  const el = document.getElementById('bar-chart');
+  const buckets = buildBuckets(r);
+  const maxSeconds = Math.max(1, ...buckets.map(b=>b.seconds));
+  el.innerHTML = buckets.map(b => {
+    if(!b.seconds){
+      return `<div class="bar-col"><div class="bar-total">&nbsp;</div><div class="bar-empty"></div><div class="bar-daylbl">${b.label}</div></div>`;
+    }
+    const hPct = Math.max(4, (b.seconds/maxSeconds)*100);
+    const segsHTML = b.tags.map(t =>
+      `<div class="bar-seg" style="height:${(t.seconds/b.seconds*100).toFixed(2)}%;background:${t.col.accent};" title="${esc(t.display)} · ${fmtHM(t.seconds)}"></div>`
+    ).join('');
+    return `<div class="bar-col">
+      <div class="bar-total">${fmtHM(b.seconds)}</div>
+      <div class="bar-stack" style="height:${hPct}%;">${segsHTML}</div>
+      <div class="bar-daylbl">${b.label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Master render ──────────────────────────────────────────────────────────
+function renderStatsPage(){
+  renderStatCards();
+  renderYearTabs();
+  renderHeatmap();
+  renderAnalysis();
+}
+// Keep the stats page (and streak/goal chips) live while a session is running.
+setInterval(()=>{ if(S.run) refreshTracker(); }, 8000);
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('beforeunload', ()=>{ autosave(); pushBowlState(); });
 window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
@@ -1522,7 +2222,7 @@ window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
       showToast(`> session restored at ${restoredFmt}`);
     }
   }
-  pushBowlState(); updClock(); renderLaps(); renderSess();
+  pushBowlState(); updClock(); renderLaps(); renderSess(); refreshTracker();
 })();
 
 // ── Calendar block inline rename ──────────────────────────────────────────────
