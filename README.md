@@ -12,7 +12,7 @@ It's also just a single HTML file. No sign-up, no server, no account to lose. Ev
 
 ## The timer itself
 
-At its core it's a stopwatch (or a countdown, if you'd rather work backward from a fixed block of time). Nothing fancy — start, pause, reset — but a few things make it more useful than a plain timer:
+At its core it's a stopwatch (or a countdown, if you'd rather work backward from a fixed block of time). Nothing fancy, start, pause, reset, but a few things make it more useful than a plain timer:
 
 - **Laps as study blocks.** Instead of one undifferentiated slab of time, you break a session into named chunks as you go — "chapter 5," "problem set," "review." Each one gets logged with its own duration.
 - **Quick tag chips.** When you go to name a block, your most-used tags show up as one-tap buttons. This matters more than it sounds like, the whole stats system downstream depends on your tags being consistent, and typing "Physics" slightly differently five times in a row will quietly fragment your data. The chips are there to stop that from happening.
@@ -21,7 +21,7 @@ At its core it's a stopwatch (or a countdown, if you'd rather work backward from
 
 ## Sessions, history, and the calendar
 
-Every day you study gets bundled into a "session" — a running log of that day's blocks, viewable and editable later. You can:
+Every day you study gets bundled into a "session",  a running log of that day's blocks, viewable and editable later. You can:
 
 - Browse past sessions in the sidebar, grouped by day.
 - Open any day and see exactly what you worked on and for how long.
@@ -38,9 +38,9 @@ This is the part that turns "I studied today" into "here's what my studying actu
 
 **The activity heatmap** is a GitHub-style contribution graph, a year of little squares, darker or lighter depending on how much you studied that day. You can flip between "last 365 days" and specific calendar years, hover any square to see the date and time studied, and click one to jump straight into that day's full session detail. It's the fastest way to see the shape of a habit: are you consistent, or do you go quiet for a week and then cram?
 
-**The study analysis panel** is where the tags earn their keep. It breaks down your time by subject/tag as a donut chart with percentages, plus a bar chart you can flip between Last 7 days, Weekly, Monthly, or Yearly views (with arrows to page backward and forward through history). This is the "am I actually splitting my time the way I think I am" check — it's very easy to *feel* like you're studying everything evenly and be wildly wrong about it.
+**The study analysis panel** is where the tags earn their keep. It breaks down your time by subject/tag as a donut chart with percentages, plus a bar chart you can flip between Last 7 days, Weekly, Monthly, or Yearly views (with arrows to page backward and forward through history). This is the "am I actually splitting my time the way I think I am" check, it's very easy to *feel* like you're studying everything evenly and be wildly wrong about it.
 
-**The daily goal bar**, back on the main timer screen, is the small nudge that ties it all together,  set a target number of minutes, and watch the bar fill in as you go. Combined with the streak counter sitting right above the clock, the idea is that awareness doesn't live in a separate dashboard you forget to check — it's part of the timer itself.
+**The daily goal bar**, back on the main timer screen, is the small nudge that ties it all together,  set a target number of minutes, and watch the bar fill in as you go. Combined with the streak counter sitting right above the clock, the idea is that awareness doesn't live in a separate dashboard you forget to check, it's part of the timer itself.
 
 ## Worth knowing
 
