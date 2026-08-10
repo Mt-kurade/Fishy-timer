@@ -448,7 +448,7 @@
 <div id="plan-app" class="plan-shell" aria-live="polite">
   <nav class="plan-nav" aria-label="Study plan navigation">
     <div class="plan-brand">Fishyy <span>/ plan</span></div>
-    <button data-plan-view="today">Today</button><button data-plan-view="calendar">Calendar</button><button data-plan-view="review">Review</button><button data-plan-view="analytics">Progress</button><button data-plan-view="import">Import</button><button data-plan-view="settings">Data</button><button onclick="openLegacyTimer()">Timer</button>
+    <button data-plan-view="today">Today</button><button data-plan-view="calendar">Calendar</button><button data-plan-view="review">Review</button><button data-plan-view="analytics">Progress</button><button data-plan-view="import">Import</button><button data-plan-view="settings">Data</button><button onclick="PlanApp.openLegacyTimer()">Timer</button>
   </nav>
   <section id="plan-today" class="plan-view"></section>
   <section id="plan-calendar" class="plan-view"></section>
@@ -460,6 +460,7 @@
 <div id="plan-modal" class="plan-modal"><div id="plan-modal-box" class="plan-modal-box"></div></div>
 <div id="toast-plan" class="toast-plan"></div>
 <div class="corner-nav">
+  <button class="btn to-plan" onclick="location.hash='today'">[ plan ]</button>
   <button class="btn to-stats" onclick="showStats()">[ // stats ]</button>
   <button class="btn to-timer" onclick="showTimer()">[ ‹ back to timer ]</button>
 </div>
