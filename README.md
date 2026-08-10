@@ -2,6 +2,82 @@
 
 A local-first study timer and plan-execution dashboard that remembers what you did.
 
+### Prompt to edit the style of the spreadsheet to one that matches the requirements of the app: 
+- Plug the original calendar into a llm and covert. Ensure the content is not changing, simply the presentation. 
+
+```markdown
+Create a study timetable as an Excel-compatible table for importing into Fishyy Study Planner.
+
+WORKSHEET REQUIREMENTS
+
+- Name the worksheet exactly: Daily Plan
+- Put column headers in row 1.
+- Do not use merged cells, decorative title rows, blank rows between tasks, subtables, or multiple header rows.
+- Each row must represent exactly one study session.
+- Use plain cell values rather than formulas.
+- Sort all sessions chronologically by Date and Start Time.
+
+USE THESE EXACT COLUMN HEADERS
+
+Date
+Start Time
+End Time
+Subject
+Topic
+Planned Duration
+Notes
+Priority
+Task Type
+Exam Date
+
+FORMATTING RULES
+
+- Date: use YYYY-MM-DD, for example 2026-08-12.
+- Start Time and End Time: use 24-hour HH:MM format, for example 18:00 and 19:30.
+- Subject: use one consistent subject name throughout the workbook.
+- Topic: describe the exact activity or topic for that session.
+- Planned Duration: use minutes, for example 90 min.
+- Notes: optional short instructions; leave blank if unnecessary.
+- Priority: use High, Medium, or Low.
+- Task Type: use one of:
+  - Concept Revision
+  - Questions
+  - Past Paper
+  - Error Review
+  - Notes
+  - Other
+- Exam Date: use YYYY-MM-DD. Repeat the subject’s exam date on its study-session rows or leave blank if unknown.
+- Ensure End Time minus Start Time matches Planned Duration.
+- Do not place totals, weekly summaries, planned net hours, statistics, or exam countdowns in the Daily Plan worksheet.
+- If a Dashboard or Summary worksheet is created, keep it separate from Daily Plan.
+
+SUBJECT NAMING
+
+Use consistent names such as:
+
+- Math AA HL
+- Physics HL
+- Computer Science HL
+- French B SL
+- Chemistry SL
+- English SL
+
+Do not alternate between abbreviations such as “Math,” “Mathematics,” and “Math AA HL.”
+
+EXAMPLE
+
+Date,Start Time,End Time,Subject,Topic,Planned Duration,Notes,Priority,Task Type,Exam Date
+2026-08-12,16:30,17:30,Physics HL,Electromagnetic Fields,60 min,Review field equations,High,Concept Revision,2026-09-20
+2026-08-12,17:40,19:10,Math AA HL,Calculus – Integration Questions,90 min,Questions 1–18,High,Questions,2026-09-15
+2026-08-12,19:40,20:40,French B SL,Reading Comprehension,60 min,Complete one timed passage,Medium,Past Paper,2026-09-28
+
+Now generate my complete study timetable using this exact structure based on the following requirements:
+
+[PASTE MY SUBJECTS, AVAILABLE STUDY HOURS, EXAM DATES, TOPICS, BREAK REQUIREMENTS, AND DATE RANGE HERE]
+
+Return the completed timetable as an Excel workbook or CSV without changing the column names.
+```
+
 ## Study plan workflow
 
 Open `index.html` directly or publish it with GitHub Pages. The default **Today** view imports `.xlsx`, `.xls`, and `.csv` timetables, previews detected rows, maps flexible columns, and turns confirmed rows into live calendar blocks. Plan data, task changes, timer segments, completion records, daily scores, exams, and analytics are stored in IndexedDB.
