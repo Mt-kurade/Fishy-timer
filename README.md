@@ -1,6 +1,18 @@
-# Fishyy Timer
+# Fishyy Timer + Study Plan
 
-A study timer that actually remembers what you did.
+A local-first study timer and plan-execution dashboard that remembers what you did.
+
+## Study plan workflow
+
+Open `index.html` directly or publish it with GitHub Pages. The default **Today** view imports `.xlsx`, `.xls`, and `.csv` timetables, previews detected rows, maps flexible columns, and turns confirmed rows into live calendar blocks. Plan data, task changes, timer segments, completion records, daily scores, exams, and analytics are stored in IndexedDB.
+
+Each imported block preserves its original subject, topic, and duration. You can freely substitute another topic within the same subject; changing the subject is a separate confirmed override. Focused time is calculated from persisted run segments, excluding pauses, and active timers recover from saved timestamps after refresh.
+
+The Data view provides JSON backup and restore. Spreadsheet contents and study records are never uploaded by the application.
+
+There is no build step, server, account, environment variable, or API. Push `index.html` to GitHub Pages and it runs as a hash-navigated static app.
+
+Excel import uses the official SheetJS browser build from its CDN. CSV import and all stored plan/timer functionality use browser APIs; Excel import needs connectivity when the external script has not already loaded.
 
 ## Why this exists
 
@@ -45,5 +57,5 @@ This is the part that turns "I studied today" into "here's what my studying actu
 ## Worth knowing
 
 - Tags are grouped case-insensitively ("physics" and "Physics" count as the same tag), but not fuzzily, "Chem" and "Chemistry" will still be treated as two different tags. The quick tag chips are the main defense against this; there's no full tag-merging tool yet.
-- Data lives entirely in your browser's local storage. Clearing your browser data, or switching browsers/devices, means starting fresh — there's currently no export or sync.
+- Data lives entirely in your browser. Use **Data → Export backup** before clearing browser data or switching devices; there is no cloud sync.
 - Around a year of history is kept before older entries start rolling off, which is enough for the yearly heatmap to actually mean something without the storage growing forever.
