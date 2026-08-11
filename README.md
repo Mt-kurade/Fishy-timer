@@ -86,9 +86,23 @@ Each imported block preserves its original subject, topic, and duration. You can
 
 The Data view provides JSON backup and restore. Spreadsheet contents and study records are never uploaded by the application.
 
-There is no build step, server, account, environment variable, or API. Push `index.html` to GitHub Pages and it runs as a hash-navigated static app.
+There is no build step or required server. Push `index.html` to GitHub Pages and it runs as a hash-navigated static app. Google Calendar sync is optional and requires a Google OAuth web client ID.
 
 Excel import uses the official SheetJS browser build from its CDN. CSV import and all stored plan/timer functionality use browser APIs; Excel import needs connectivity when the external script has not already loaded.
+
+## Google Calendar two-way sync
+
+Open **Data → Google Calendar**, enter a Google OAuth web client ID, leave the Calendar ID as `primary` (or enter another writable calendar ID), save, and connect. Imported study blocks are then created in Google Calendar. Moving, resizing, renaming, or deleting a linked event is pulled into Fishyy; Fishyy task, schedule, status, and import-group deletion changes are pushed back to Google.
+
+To configure Google Cloud:
+
+1. Enable the Google Calendar API for the project.
+2. Configure the OAuth consent screen.
+3. Create an OAuth 2.0 Client ID with application type **Web application**.
+4. Add Fishyy's exact HTTPS origin (for example, its GitHub Pages origin) or local development origin to **Authorized JavaScript origins**.
+5. Paste the resulting `*.apps.googleusercontent.com` client ID into Fishyy's Data view.
+
+Google sign-in does not work when `index.html` is opened through `file://`; serve it from HTTPS or `http://localhost`. OAuth access tokens stay in memory and are never included in backups. Because this remains a static, local-first app, automatic reconciliation runs every minute while Fishyy is open and connected, and also runs after local edits, imports, focus, and reconnect. A persistent background sync while the page is closed would require a backend that securely stores refresh credentials.
 
 ## Why this exists
 
