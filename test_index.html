@@ -618,12 +618,10 @@ let lastCmdTs = 0;
 function pushBowlState(){
   try{
     localStorage.setItem(BOWL_STATE_KEY, JSON.stringify({
-      // Send the value from the start of this run. The pop-out adds the
-      // wall-clock elapsed time itself; sending getCurrentT() here would
-      // count that elapsed time twice and make its clock run about 2x fast.
+      // S.t is the value at startedAt. Both windows add the same wall-clock
+      // delta exactly once, so opening a pop-out cannot accelerate the timer.
       t: S.t, run: S.run, mode: S.mode, ls: S.ls, laps: S.laps,
-      startWall: (S.run && S.startedAt !== null)
-        ? Date.now() - (performance.now() - S.startedAt) : null
+      startWall: (S.run && S.startedAt !== null) ? S.startedAt : null
     }));
   }catch{}
 }
@@ -667,7 +665,7 @@ const fmt=s=>`${pad(s/60)}:${pad(s%60)}`;
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function getCurrentT(){
   if(!S.run||S.startedAt===null)return S.t;
-  const elapsed=(performance.now()-S.startedAt)/1000;
+  const elapsed=Math.max(0,(Date.now()-S.startedAt)/1000);
   return S.mode==='countdown'?Math.max(0,S.t-elapsed):S.t+elapsed;
 }
 
@@ -693,7 +691,7 @@ function tick(){
 // ── Play / Pause / Reset ──────────────────────────────────────────────────────
 function play(){
   if(S.run)return;
-  S.run=true; S.startedAt=performance.now();
+  S.run=true; S.startedAt=Date.now();
   iv=setInterval(tick,250);
   document.getElementById('sbtn').textContent='[ pause ]';
   document.getElementById('lbtn').disabled=false;
@@ -970,8 +968,8 @@ document.addEventListener('keydown',e=>{
     case 'r':case 'R':resetTimer();break;
     case 'f':case 'F':toggleFS();break;
     case 'p':case 'P':toggleBowl();break;
-    case 'ArrowUp':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}S.t=Math.max(0,S.t+60);if(S.run)S.startedAt=performance.now();updClock();pushBowlState();break;
-    case 'ArrowDown':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=performance.now();}S.t=Math.max(0,S.t-60);if(S.run)S.startedAt=performance.now();updClock();pushBowlState();break;
+    case 'ArrowUp':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=Date.now();}S.t=Math.max(0,S.t+60);if(S.run)S.startedAt=Date.now();updClock();pushBowlState();break;
+    case 'ArrowDown':e.preventDefault();if(S.run){S.t=getCurrentT();S.startedAt=Date.now();}S.t=Math.max(0,S.t-60);if(S.run)S.startedAt=Date.now();updClock();pushBowlState();break;
   }
 });
 document.getElementById('linput').addEventListener('keydown',e=>{if(e.key==='Enter')saveLap();});
