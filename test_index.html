@@ -618,7 +618,10 @@ let lastCmdTs = 0;
 function pushBowlState(){
   try{
     localStorage.setItem(BOWL_STATE_KEY, JSON.stringify({
-      t: getCurrentT(), run: S.run, mode: S.mode, ls: S.ls, laps: S.laps,
+      // Send the value from the start of this run. The pop-out adds the
+      // wall-clock elapsed time itself; sending getCurrentT() here would
+      // count that elapsed time twice and make its clock run about 2x fast.
+      t: S.t, run: S.run, mode: S.mode, ls: S.ls, laps: S.laps,
       startWall: (S.run && S.startedAt !== null)
         ? Date.now() - (performance.now() - S.startedAt) : null
     }));
