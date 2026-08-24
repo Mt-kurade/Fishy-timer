@@ -264,7 +264,7 @@
   .stats-hd h1{font-family:'Times New Roman',Times,serif;font-size:1.25rem;font-weight:700;color:var(--text);letter-spacing:0.01em;}
   .stats-hd span{font-size:0.56rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);}
 
-  .stat-cards-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .stat-cards-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;}
   .stat-card{border:1px solid var(--b1);background:var(--s1);padding:0.9rem 1.1rem;display:flex;flex-direction:column;gap:8px;}
   .stat-card .sc-top{display:flex;align-items:center;gap:7px;font-size:0.5rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim2);}
   .stat-card .sc-ic{width:16px;height:16px;border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:var(--acc2);flex-shrink:0;}
@@ -576,6 +576,10 @@
       <div class="stat-card">
         <div class="sc-top"><span class="sc-ic">◷</span> study time</div>
         <div class="sc-val" id="stat-time">0m</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-top"><span class="sc-ic">7</span> past 7 days</div>
+        <div class="sc-val" id="stat-week">0m</div>
       </div>
       <div class="stat-card">
         <div class="sc-top"><span class="sc-ic" style="border:none;">🔥</span> streak</div>
@@ -1466,6 +1470,29 @@ function renderLaps(){
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 function getS(){try{return JSON.parse(localStorage.getItem('study_s')||'[]');}catch{return[];}}
+function lapDurationSeconds(lap){
+  const duration=Number(lap?.duration);
+  return Number.isFinite(duration)&&duration>0?duration:0;
+}
+function sessionLapTotal(session){
+  return (session?.laps||[]).reduce((total,lap)=>total+lapDurationSeconds(lap),0);
+}
+function sessionTotalSeconds(session){
+  const taskTotal=sessionLapTotal(session);
+  const stored=Number(session?.total);
+  const storedTotal=Number.isFinite(stored)&&stored>0?stored:0;
+  return Math.max(taskTotal,storedTotal);
+}
+function repairStoredSessionTotals(){
+  const all=getS();
+  let changed=false;
+  all.forEach(session=>{
+    const repaired=sessionTotalSeconds(session);
+    if(Number(session.total)!==repaired){session.total=repaired;changed=true;}
+  });
+  if(changed)try{localStorage.setItem('study_s',JSON.stringify(all));}catch{}
+  return changed;
+}
 function dayKey(dateStr){
   // Use same format as wallDayKey so keys are comparable
   const d=new Date(dateStr);
@@ -1542,7 +1569,7 @@ function renderSess(){
       <div class="sr1" onclick="viewSess(${origIdx})" style="cursor:pointer;">
         <span class="sdate">${dateLabel}</span>
         <div style="display:flex;align-items:center;">
-          <span class="stot">${fmt(s.total)}</span>
+          <span class="stot">${fmt(sessionTotalSeconds(s))}</span>
           <button class="si-edit" onclick="event.stopPropagation();openEditModal(${origIdx})" title="edit this day's sessions">edit</button>
         </div>
       </div>
@@ -1556,7 +1583,7 @@ function viewSess(i){
   const isToday=dayKey(s.date)===todayKey();
   const dateLabel=isToday?'today':d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
   document.getElementById('smtitle').textContent=`// ${dateLabel}`;
-  document.getElementById('smsub').textContent=`${s.laps.length} block${s.laps.length===1?'':'s'} · total: ${fmt(s.total)}`;
+  document.getElementById('smsub').textContent=`${s.laps.length} block${s.laps.length===1?'':'s'} · total: ${fmt(sessionTotalSeconds(s))}`;
   document.getElementById('smlaps').innerHTML=s.laps.map(lapHTML).join('');
   document.getElementById('sess-modal').style.display='flex';
 }
@@ -2001,9 +2028,25 @@ function dateToKey(d){ return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate(
 function dayTotalsMap(){
   const all = getS();
   const map = {};
-  all.forEach(s => { map[dayKey(s.date)] = s.total || 0; });
-  map[todayKey()] = todaySeconds();
+  all.forEach(s => {
+    const key=dayKey(s.date);
+    map[key]=(map[key]||0)+sessionTotalSeconds(s);
+  });
+  // Do not replace repaired task history with zero when today's older record
+  // has no matching calendar segments.
+  map[todayKey()] = Math.max(map[todayKey()]||0,todaySeconds());
   return map;
+}
+
+function computePastWeekSeconds(){
+  const map=dayTotalsMap();
+  const cursor=new Date();cursor.setHours(0,0,0,0);
+  let total=0;
+  for(let i=0;i<7;i++){
+    total+=map[dateToKey(cursor)]||0;
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return total;
 }
 
 function daySessionCount(key){
@@ -2205,6 +2248,7 @@ function renderStatCards(){
   const streak = computeStreak();
   document.getElementById('stat-sessions').textContent = sessions;
   document.getElementById('stat-time').textContent     = fmtHM(seconds);
+  document.getElementById('stat-week').textContent     = fmtHM(computePastWeekSeconds());
   document.getElementById('stat-streak').textContent   = `${streak} day${streak===1?'':'s'}`;
   document.getElementById('stat-best').textContent     = fmtHM(computeBestDaySeconds());
 }
@@ -2415,6 +2459,7 @@ setInterval(()=>{ if(S.run) refreshTracker(); }, 8000);
 window.addEventListener('beforeunload', ()=>{ autosave(); pushBowlState(); });
 window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
 (function init(){
+  repairStoredSessionTotals();
   const saved=loadAutosave();
   if(saved){
     S.t    = saved.t    ?? 0;
