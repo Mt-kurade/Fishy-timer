@@ -19,7 +19,7 @@
   .ascii-entity{position:absolute;color:rgba(210,210,210,0.6);font-family:'Courier New',Courier,monospace;white-space:pre;line-height:1.2;pointer-events:none;user-select:none;}
 
   /* ── Layout ── */
-  .app{position:relative;z-index:1;display:grid;grid-template-columns:1fr 340px;min-height:100vh;}
+  .app{position:relative;z-index:1;display:grid;grid-template-columns:1fr 340px;min-height:100vh;padding-top:54px;}
   .main{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;gap:2rem;}
 
   /* ── Mode row ── */
@@ -243,12 +243,16 @@
   .goal-fill.done{background:var(--text);}
 
   /* ══════════════════════════════════════════════════════════════════════
-     Corner nav — switch between timer and stats page
+     Global tabs — timer, stats, and every planner/data view
      ══════════════════════════════════════════════════════════════════════ */
-  .corner-nav{position:fixed;top:1.1rem;right:1.3rem;z-index:50;}
+  .app-nav{position:fixed;z-index:70;top:0;left:0;right:0;height:54px;border-bottom:1px solid var(--b1);background:rgba(8,8,8,.94);backdrop-filter:blur(12px);display:flex;align-items:center;padding:0 1.2rem;gap:.35rem;overflow-x:auto;}
+  .app-brand{font-size:.78rem;font-weight:700;letter-spacing:.08em;margin-right:auto;color:var(--text);white-space:nowrap;}
+  .app-brand span{color:var(--dim);font-weight:400;}
+  .app-nav button{background:none;border:0;border-bottom:1px solid transparent;color:var(--dim);font:inherit;font-size:.56rem;letter-spacing:.09em;text-transform:uppercase;padding:.55rem .62rem;cursor:pointer;white-space:nowrap;}
+  .app-nav button:hover,.app-nav button.on{color:var(--text);}
+  .app-nav button.on{border-bottom-color:var(--text);}
+  .app-nav-divider{width:1px;height:18px;background:var(--b1);margin:0 .2rem;flex:0 0 auto;}
   body.stats-view .app{display:none;}
-  body.stats-view .corner-nav .to-stats{display:none;}
-  body:not(.stats-view) .corner-nav .to-timer{display:none;}
 
   /* ══════════════════════════════════════════════════════════════════════
      STATS PAGE
@@ -351,13 +355,7 @@
      ══════════════════════════════════════════════════════════════════════ */
   .plan-shell{position:relative;z-index:4;min-height:100vh;padding:5.4rem 1.2rem 4rem;display:none;}
   body.plan-mode .plan-shell{display:block;}
-  body.plan-mode>.app,body.plan-mode>#stats-page,body.plan-mode>.corner-nav{display:none!important;}
-  .plan-nav{position:fixed;z-index:70;top:0;left:0;right:0;height:54px;border-bottom:1px solid var(--b1);background:rgba(8,8,8,.94);backdrop-filter:blur(12px);display:flex;align-items:center;padding:0 1.2rem;gap:.35rem;}
-  .plan-brand{font-size:.78rem;font-weight:700;letter-spacing:.08em;margin-right:auto;color:var(--text);white-space:nowrap;}
-  .plan-brand span{color:var(--dim);font-weight:400;}
-  .plan-nav button{background:none;border:0;color:var(--dim);font:inherit;font-size:.56rem;letter-spacing:.09em;text-transform:uppercase;padding:.55rem .62rem;cursor:pointer;}
-  .plan-nav button:hover,.plan-nav button.on{color:var(--text);}
-  .plan-nav button.on{border-bottom:1px solid var(--text);}
+  body.plan-mode>.app,body.plan-mode>#stats-page{display:none!important;}
   .plan-view{display:none;max-width:980px;margin:0 auto;}
   .plan-view.on{display:block;}
   .plan-kicker{font-size:.54rem;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);margin-bottom:.38rem;}
@@ -450,18 +448,26 @@
   .audit-list b{color:var(--acc);font-weight:400;}
   .toast-plan{position:fixed;z-index:200;left:50%;bottom:1.2rem;transform:translateX(-50%);background:#111;border:1px solid var(--b2);padding:.7rem 1rem;font-size:.56rem;color:var(--text);display:none;max-width:90vw;}
   @media(max-width:720px){
-    .plan-shell{padding:4.8rem .75rem 5rem}.plan-nav{overflow-x:auto;padding:0 .5rem}.plan-brand{display:none}.plan-nav button{padding:.55rem .45rem;font-size:.49rem}
+    .plan-shell{padding:4.8rem .75rem 5rem}.app-nav{padding:0 .5rem}.app-brand{display:none}.app-nav button{padding:.55rem .45rem;font-size:.49rem}
     .metric-grid{grid-template-columns:repeat(2,1fr)}.current-grid{grid-template-columns:1fr}.task-timer{text-align:left}.plan-task{grid-template-columns:66px 4px 1fr}.plan-task>.plan-actions{grid-column:3}.up-next{grid-template-columns:70px 1fr}.analytics-grid,.settings-grid,.review-lists{grid-template-columns:1fr}.mapping-grid,.mapping-row{grid-template-columns:1fr}.review-grid{grid-template-columns:1fr}
   }
 </style>
 </head>
 <body>
 <div id="ascii-sky"></div>
+<nav class="app-nav" aria-label="Fishyy navigation">
+  <div class="app-brand">Fishyy <span>/ timer</span></div>
+  <button data-app-view="timer" onclick="PlanApp.openLegacyTimer()">Timer</button>
+  <button data-app-view="stats" onclick="showStats()">Stats</button>
+  <span class="app-nav-divider" aria-hidden="true"></span>
+  <button data-app-view="today" data-plan-view="today">Today</button>
+  <button data-app-view="calendar" data-plan-view="calendar">Calendar</button>
+  <button data-app-view="review" data-plan-view="review">Review</button>
+  <button data-app-view="analytics" data-plan-view="analytics">Progress</button>
+  <button data-app-view="import" data-plan-view="import">Import</button>
+  <button data-app-view="settings" data-plan-view="settings">Data</button>
+</nav>
 <div id="plan-app" class="plan-shell" aria-live="polite">
-  <nav class="plan-nav" aria-label="Study plan navigation">
-    <div class="plan-brand">Fishyy <span>/ plan</span></div>
-    <button data-plan-view="today">Today</button><button data-plan-view="calendar">Calendar</button><button data-plan-view="review">Review</button><button data-plan-view="analytics">Progress</button><button data-plan-view="import">Import</button><button data-plan-view="settings">Data</button><button onclick="PlanApp.openLegacyTimer()">Timer</button>
-  </nav>
   <section id="plan-today" class="plan-view"></section>
   <section id="plan-calendar" class="plan-view"></section>
   <section id="plan-review" class="plan-view"></section>
@@ -471,11 +477,6 @@
 </div>
 <div id="plan-modal" class="plan-modal"><div id="plan-modal-box" class="plan-modal-box"></div></div>
 <div id="toast-plan" class="toast-plan"></div>
-<div class="corner-nav">
-  <button class="btn to-plan" onclick="location.hash='today'">[ plan ]</button>
-  <button class="btn to-stats" onclick="showStats()">[ // stats ]</button>
-  <button class="btn to-timer" onclick="showTimer()">[ ‹ back to timer ]</button>
-</div>
 <div class="app">
   <main class="main">
     <div class="track-row">
@@ -746,13 +747,12 @@ function loadCalDay(key) {
   } catch { return []; }
 }
 
-function saveCalSegment(seg) {
+function saveCalSegment(seg, dayKeyOverride = null) {
   try {
     const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
-    // Use the segment's own wall timestamp to determine the day it belongs to.
-    // This means a session that started at 11:50pm and ends at 12:10am is
-    // correctly filed under the day it STARTED, not the day it ended.
-    const key = wallDayKey(seg.wall);
+    // Most events belong to their wall-clock day. A synthetic midnight pause is
+    // deliberately stored on the day that just ended, hence the optional key.
+    const key = dayKeyOverride || wallDayKey(seg.wall);
     if (!all[key]) all[key] = [];
     all[key].push(seg);
     const keys = Object.keys(all).sort();
@@ -1038,7 +1038,7 @@ function buildCalEvents(segs) {
 
   // Emit one coloured block for a single run segment
   function emitRun(startWall, endWall, isLive) {
-    const minMs = isLive ? 5000 : 1000;  // live: 5s threshold; completed: 1s
+    const minMs = isLive ? 5000 : 1;  // live: 5s threshold; completed: preserve all positive time
     if (endWall - startWall < minMs) return;
     events.push({
       name:      lapName,
@@ -1154,6 +1154,48 @@ const AUTOSAVE_KEY='study_autosave';
 
 // Current lap name (updated when lap is saved)
 let currentLapName = 'study block';
+let currentCalColorSeed = 0;
+
+function nextLocalMidnight(ms) {
+  const d = new Date(ms);
+  d.setHours(24, 0, 0, 0);
+  return d.getTime();
+}
+
+function midnightBoundariesBetween(startWall, endWall) {
+  const boundaries = [];
+  let cursor = startWall;
+  while (wallDayKey(cursor) !== wallDayKey(endWall)) {
+    const boundary = nextLocalMidnight(cursor);
+    boundaries.push(boundary);
+    cursor = boundary;
+  }
+  return boundaries;
+}
+
+function timerValueAt(wall) {
+  if (!S.run || S.startedAt === null) return S.t;
+  const elapsed = Math.max(0, (wall - S.startedAt) / 1000);
+  return S.mode === 'countdown' ? Math.max(0, S.t - elapsed) : S.t + elapsed;
+}
+
+// Turn a run that spans midnight into self-contained per-day start/pause pairs.
+// This also handles a sleeping tab: the next tick can split across several days.
+function splitActiveRunAtMidnight(at = Date.now()) {
+  if (!S.run || S.calRunStartWall == null) return;
+  let runStart = S.calRunStartWall;
+  for (const boundary of midnightBoundariesBetween(runStart, at)) {
+    const finishedDay = wallDayKey(runStart);
+    saveCalSegment({type:'pause', wall:boundary}, finishedDay);
+    syncSessionDayFromCalendar(finishedDay);
+    saveCalSegment({
+      type:'start', wall:boundary, lapName:currentLapName,
+      colorSeed:currentCalColorSeed, timerAtLapStart:timerValueAt(boundary)
+    });
+    runStart = boundary;
+  }
+  S.calRunStartWall = runStart;
+}
 
 // ── Bowl state sync ──────────────────────────────────────────────────────────
 const CMD_KEY = 'fishbowl_cmd';
@@ -1185,6 +1227,14 @@ function processCmd(){
         const p = c.payload;
         S.laps.push({...p, ci: S.laps.length % LC.length});
         S.ls = p.end;
+        const commandLapWall = Date.now();
+        splitActiveRunAtMidnight(commandLapWall);
+        saveCalSegment({type:'lap', wall:commandLapWall, name:p.name});
+        currentLapName = `block ${S.laps.length + 1}`;
+        currentCalColorSeed = Math.floor(Math.random() * 12);
+        S.calRunStartWall = commandLapWall + 1;
+        saveCalSegment({type:'start', wall:S.calRunStartWall, lapName:currentLapName,
+          colorSeed:currentCalColorSeed, timerAtLapStart:getCurrentT()});
         renderLaps(); autosave(); pushBowlState(); refreshTracker();
         break;
     }
@@ -1211,6 +1261,9 @@ function autosave(){
       ls:          S.ls,
       laps:        S.laps,
       sessionStartWall: S.sessionStartWall || null,
+      calRunStartWall: S.calRunStartWall || null,
+      currentLapName,
+      currentCalColorSeed,
     }));
   }catch{}
 }
@@ -1274,6 +1327,7 @@ function updClock(){
 }
 function tick(){
   if(!S.run)return;
+  splitActiveRunAtMidnight();
   if(S.mode==='countdown'&&getCurrentT()<=0){S.t=0;S.startedAt=null;pause();return;}
   updClock(); pushBowlState(); autosave(); renderGoalBar();
 }
@@ -1281,35 +1335,44 @@ function tick(){
 // ── Play / Pause / Reset ──────────────────────────────────────────────────────
 function play(){
   if(S.run)return;
-  S.run=true; S.startedAt=Date.now();
+  const playWall=Date.now();
+  S.run=true; S.startedAt=playWall;
+  if(S.sessionStartWall == null) S.sessionStartWall=playWall;
+  S.calRunStartWall=playWall;
+  currentCalColorSeed=Math.floor(Math.random() * 12);
   iv=setInterval(tick,250);
   document.getElementById('sbtn').textContent='[ pause ]';
   document.getElementById('lbtn').disabled=false;
   // Record start event with current lap name
-  saveCalSegment({type:'start', wall:Date.now(), lapName: currentLapName, colorSeed: Math.floor(Math.random() * 12), timerAtLapStart: getCurrentT()});
+  saveCalSegment({type:'start', wall:playWall, lapName: currentLapName, colorSeed:currentCalColorSeed, timerAtLapStart: getCurrentT()});
   startCalLive();
   reqWL(); updClock(); pushBowlState();
 }
 function pause(){
   if(!S.run&&S.startedAt===null)return;
+  const pauseWall=Date.now();
+  splitActiveRunAtMidnight(pauseWall);
   S.t=getCurrentT(); S.startedAt=null; S.run=false;
   clearInterval(iv); iv=null;
   document.getElementById('sbtn').textContent='[ start ]';
   // Keep lap button enabled while paused so user can still save a lap
   if(S.t > 0) document.getElementById('lbtn').disabled=false;
   // Record pause event
-  saveCalSegment({type:'pause', wall:Date.now()});
+  saveCalSegment({type:'pause', wall:pauseWall});
+  S.calRunStartWall=null;
+  syncSessionDayFromCalendar(wallDayKey(pauseWall));
+  renderLaps();
   stopCalLive();
   relWL(); autosave(); updClock(); pushBowlState();
 }
 function toggleTimer(){S.run?pause():play();}
 
 function resetTimer(){
-  if(S.laps.length)saveSess(); pause();
+  pause();
   // Record reset
   saveCalSegment({type:'reset', wall:Date.now()});
   stopCalLive();
-  S.t=0;S.laps=[];S.ls=0;S.pend=null;S.startedAt=null;S.sessionStartWall=null;
+  S.t=0;S.laps=[];S.ls=0;S.pend=null;S.startedAt=null;S.sessionStartWall=null;S.calRunStartWall=null;
   currentLapName='study block';
   document.getElementById('lbtn').disabled=true;
   document.getElementById('lap-modal').style.display='none';
@@ -1352,16 +1415,18 @@ function saveLap(){
   document.getElementById('lap-modal').style.display='none';
   // Record lap event — closes current block with user's chosen name
   const lapWall = Date.now();
+  splitActiveRunAtMidnight(lapWall);
   saveCalSegment({type:'lap', wall:lapWall, name});
   currentLapName = `block ${S.laps.length + 1}`;
   // Only write new 'start' segment if timer is running (not paused)
   // If paused, the next play() will write the start segment
   if(S.run){
+    S.calRunStartWall = lapWall + 1;
     saveCalSegment({
       type:            'start',
-      wall:            lapWall + 1,
+      wall:            S.calRunStartWall,
       lapName:         currentLapName,
-      colorSeed:       Math.floor(Math.random() * 12),
+      colorSeed:       (currentCalColorSeed = Math.floor(Math.random() * 12)),
       timerAtLapStart: getCurrentT()
     });
   }
@@ -1380,7 +1445,9 @@ function renderLaps(){
   const tk=todayKey();
   const todaySess=all.find(s=>dayKey(s.date)===tk);
   const savedTodayLaps=todaySess?todaySess.laps:[];
-  const allTodayLaps=[...savedTodayLaps,...S.laps];
+  // Once the day has been synced, its calendar-derived blocks already include
+  // every completed lap/run, so appending S.laps would count them twice.
+  const allTodayLaps=todaySess?.calendarSynced ? savedTodayLaps : [...savedTodayLaps,...S.laps];
   if(!allTodayLaps.length){
     el.innerHTML='<div class="empty-msg">&gt; start the timer<br>&gt; press [lap] to<br>&nbsp;&nbsp;&nbsp;mark a block</div>';
     return;
@@ -1406,24 +1473,35 @@ function dayKey(dateStr){
 }
 function todayKey(){return wallDayKey(Date.now());}
 function saveSess(){
-  if(!S.laps.length)return;
-  const all=getS();
-  // Use the session's actual start wall time (set when play() first called)
-  // so midnight-crossing sessions are filed under the day they STARTED.
-  const sessionWall = S.sessionStartWall || Date.now();
-  const sessionDate = new Date(sessionWall).toISOString();
-  const sk = wallDayKey(sessionWall);
-  const idx = all.findIndex(s => dayKey(s.date) === sk);
-  if(idx >= 0){
-    all[idx].laps  = [...all[idx].laps, ...S.laps];
-    all[idx].total = calDayTotalFromSegments(sk);  // use calendar data as source of truth
-  } else {
-    all.unshift({
-      date:  sessionDate,
-      laps:  S.laps,
-      total: calDayTotalFromSegments(sk)
-    });
-  }
+  syncSessionDayFromCalendar(todayKey());
+}
+
+function dayKeyDate(key) {
+  const [y,m,d] = key.split('-').map(Number);
+  return new Date(y, m-1, d, 12, 0, 0, 0).toISOString();
+}
+
+// Persist the calendar's completed run time as daily history. This makes an
+// ordinary pause/reset a real save even when the user never pressed [lap].
+function syncSessionDayFromCalendar(key) {
+  const events = buildCalEvents(loadCalDay(key)).filter(ev => !ev.live);
+  if (!events.length) return;
+  let cursor = 0;
+  const laps = events.map((ev, i) => {
+    const duration = Math.max(0, (ev.endWall - ev.startWall) / 1000);
+    const lap = {
+      name:ev.name || 'study block', start:cursor, end:cursor+duration,
+      duration, ci:(ev.colorIdx ?? i) % LC.length,
+      wallStart:ev.startWall, wallEnd:ev.endWall
+    };
+    cursor += duration;
+    return lap;
+  }).filter(l => l.duration > 0);
+  if (!laps.length) return;
+  const all = getS();
+  const idx = all.findIndex(s => dayKey(s.date) === key);
+  const record = {date:dayKeyDate(key), laps, total:Math.round(cursor), calendarSynced:true};
+  if (idx >= 0) all[idx] = record; else all.unshift(record);
   localStorage.setItem('study_s', JSON.stringify(all.slice(0, 400)));
   renderSess();
 }
@@ -2063,8 +2141,16 @@ function pickTagChip(name){
 }
 
 // ── Stats page navigation ─────────────────────────────────────────────────────
-function showStats(){ document.body.classList.add('stats-view'); renderStatsPage(); }
-function showTimer(){ document.body.classList.remove('stats-view'); }
+function showStats(){
+  document.body.classList.remove('plan-mode');
+  document.body.classList.add('stats-view');
+  location.hash='stats';
+  renderStatsPage();
+}
+function showTimer(){
+  document.body.classList.remove('stats-view','plan-mode');
+  location.hash='timer';
+}
 
 // ── Analysis period state ─────────────────────────────────────────────────────
 let statsPeriod = 'week';   // 'last7' | 'week' | 'month' | 'year'
@@ -2337,11 +2423,20 @@ window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
     S.mode = saved.mode ?? 'stopwatch';
     S.run  = false;
     S.sessionStartWall = saved.sessionStartWall ?? null;
+    S.calRunStartWall = saved.calRunStartWall ?? null;
+    currentLapName = saved.currentLapName || 'study block';
+    currentCalColorSeed = saved.currentCalColorSeed ?? 0;
     document.getElementById('btn-sw').classList.toggle('on', S.mode==='stopwatch');
     document.getElementById('btn-cd').classList.toggle('on', S.mode==='countdown');
     if(S.t > 0) document.getElementById('lbtn').disabled = false;
     const restoredFmt = fmt(Math.floor(S.t));
     if(saved.wasRunning){
+      // The restored elapsed value includes the time since the last autosave.
+      // Close that recovered run now, splitting it at any crossed midnights.
+      S.run = true;
+      S.startedAt = Date.now();
+      if(S.calRunStartWall == null) S.calRunStartWall = saved.savedAtWall || Date.now();
+      pause();
       showToast(`> session restored at ${restoredFmt} (was running — press start to continue)`);
     } else {
       showToast(`> session restored at ${restoredFmt}`);
@@ -2657,7 +2752,30 @@ const PlanApp = (() => {
 
   function renderImport(){document.getElementById('plan-import').innerHTML=`<div class="plan-kicker">Local spreadsheet import</div><h1 class="plan-title">Import study plan</h1><p class="plan-sub">Upload → detect sheets and headers → map columns → validate → preview → confirm. Your spreadsheet is parsed only in this browser.</p><label class="import-drop"><input id="plan-file" type="file" accept=".xlsx,.xls,.csv" onchange="PlanApp.handleFile(this.files[0])"><strong>Choose Excel or CSV</strong><span>.xlsx, .xls, or .csv · nothing is uploaded</span></label>${state.imports.length?`<div class="plan-card"><h2>Previous imports</h2>${state.imports.sort((a,b)=>b.imported_at.localeCompare(a.imported_at)).map(i=>`<div class="plan-task" style="grid-template-columns:1fr auto"><div><b>${safe(i.filename)}</b><div class="plan-sub">${safe(i.source_sheet)} · ${i.row_count} tasks · ${new Date(i.imported_at).toLocaleString()}</div></div><button class="pbtn danger" onclick="PlanApp.deleteImport('${i.id}')">Delete group</button></div>`).join('')}</div>`:''}`;}
   function renderSettings(){const last=setting('google_last_sync',''),connected=googleConnected();document.getElementById('plan-settings').innerHTML=`<div class="plan-kicker">Accounts & data</div><h1 class="plan-title">Sync and backup</h1><p class="plan-sub">Fishyy remains local-first. Google Calendar access is optional and used only when you connect it.</p><div class="plan-card"><h2>Google Calendar — two-way sync</h2><p class="privacy-note">Imported blocks are created as Google Calendar events. Moving, resizing, or renaming a synced event updates Fishyy; Fishyy edits update Google. Automatic sync runs every minute while this page is open and the temporary Google connection is active.</p><div class="mapping-grid"><div class="field"><label>Google OAuth web client ID</label><input id="google-client-id" value="${safe(setting('google_client_id',''))}" placeholder="123…apps.googleusercontent.com"></div><div class="field"><label>Calendar ID</label><input id="google-calendar-id" value="${safe(setting('google_calendar_id','primary'))}" placeholder="primary"></div></div><label class="privacy-note" style="display:block;margin:.7rem 0"><input id="google-auto-sync" type="checkbox" ${setting('google_auto_sync',true)!==false?'checked':''}> Sync automatically while Fishyy is open</label><p class="privacy-note">Enable the Google Calendar API, create a Web OAuth client, and add this site's exact origin to its authorized JavaScript origins. Use <b>primary</b> for the signed-in account's main calendar.</p><div class="plan-actions"><button class="pbtn" onclick="PlanApp.saveGoogleConfig()">Save settings</button><button class="pbtn primary" onclick="PlanApp.connectGoogle()">${connected?'Reconnect':'Connect Google Calendar'}</button><button class="pbtn" ${connected?'':'disabled'} onclick="PlanApp.syncGoogleCalendar()">Sync now</button>${connected?`<button class="pbtn danger" onclick="PlanApp.disconnectGoogle()">Disconnect</button>`:''}</div><p class="plan-sub" style="margin-top:.8rem"><b>Status:</b> ${safe(googleSync.message||(connected?'Connected':'Not connected'))}${last?` · Last successful sync ${safe(new Date(last).toLocaleString())}`:''}</p></div><div class="settings-grid"><div class="plan-card"><h2>Portable backup</h2><p class="privacy-note">Includes study tasks, Google event links, original/current plans, timer segments, completion records, daily scores, exams, settings, and legacy Fishyy sessions. OAuth access tokens are never stored.</p><div class="plan-actions"><button class="pbtn primary" onclick="PlanApp.exportBackup()">Export backup</button><label class="pbtn" style="cursor:pointer">Import backup<input type="file" accept=".json" style="display:none" onchange="PlanApp.importBackup(this.files[0])"></label></div></div><div class="plan-card"><h2>Privacy & storage</h2><p class="privacy-note">Plan data stays in IndexedDB. When connected, only synced study-block fields are sent to the selected Google Calendar; no token is persisted.</p><button class="pbtn danger" onclick="PlanApp.clearPlanData()">Clear plan data</button></div></div><div class="plan-card"><h2>Deployment</h2><p class="privacy-note">Google OAuth requires an authorized HTTPS or localhost origin, so Calendar sync does not work when index.html is opened directly as a file. Core tracking remains offline-capable.</p></div>`;}
-  function renderCurrent(){const view=(location.hash||'#today').slice(1);if(view==='timer'){document.body.classList.remove('plan-mode');return;}document.body.classList.add('plan-mode');document.body.classList.remove('stats-view');document.querySelectorAll('.plan-view').forEach(x=>x.classList.remove('on'));document.querySelectorAll('[data-plan-view]').forEach(x=>x.classList.toggle('on',x.dataset.planView===view));const el=document.getElementById(`plan-${view}`)||document.getElementById('plan-today');el.classList.add('on');if(view==='calendar')renderCalendar();else if(view==='review')renderReview();else if(view==='analytics')renderAnalytics();else if(view==='import')state.importCtx?renderImportMapping():renderImport();else if(view==='settings')renderSettings();else renderToday();}
+  function renderCurrent(){
+    const requested=(location.hash||'#timer').slice(1);
+    const planViews=new Set(['today','calendar','review','analytics','import','settings']);
+    const view=requested==='stats'||requested==='timer'||planViews.has(requested)?requested:'timer';
+    document.querySelectorAll('[data-app-view]').forEach(x=>x.classList.toggle('on',x.dataset.appView===view));
+    const brandMode=document.querySelector('.app-brand span');
+    if(brandMode)brandMode.textContent=`/ ${view==='analytics'?'progress':view}`;
+    if(view==='timer'){
+      document.body.classList.remove('plan-mode','stats-view');
+      return;
+    }
+    if(view==='stats'){
+      document.body.classList.remove('plan-mode');
+      document.body.classList.add('stats-view');
+      renderStatsPage();
+      return;
+    }
+    document.body.classList.add('plan-mode');
+    document.body.classList.remove('stats-view');
+    document.querySelectorAll('.plan-view').forEach(x=>x.classList.remove('on'));
+    const el=document.getElementById(`plan-${view}`);
+    el.classList.add('on');
+    if(view==='calendar')renderCalendar();else if(view==='review')renderReview();else if(view==='analytics')renderAnalytics();else if(view==='import')state.importCtx?renderImportMapping():renderImport();else if(view==='settings')renderSettings();else renderToday();
+  }
   function taskById(id){return state.tasks.find(t=>t.id===id);}
   function closeRunningSegment(t,at=Date.now()){
     const tm=t.timer;if(tm.state!=='running'||!tm.running_since)return 0;const sec=Math.max(0,(at-new Date(tm.running_since).getTime())/1000);tm.accumulated_seconds=(tm.accumulated_seconds||0)+sec;const seg=[...(tm.segments||[])].reverse().find(s=>!s.ended_at);if(seg){seg.ended_at=new Date(at).toISOString();seg.focused_seconds=Math.round((at-new Date(seg.started_at).getTime())/1000);}tm.running_since=null;return sec;
@@ -2693,9 +2811,9 @@ const PlanApp = (() => {
   async function exportBackup(){await reload();const payload={format:'fishy-study-plan-backup',version:1,exported_at:nowISO(),studyPlan:{tasks:state.tasks,imports:state.imports,dailyScores:state.dailyScores,exams:state.exams,settings:await all('settings')},legacy:{study_s:localStorage.getItem('study_s'),fishy_cal:localStorage.getItem('fishy_cal'),study_goal_min:localStorage.getItem('study_goal_min')}};download(`fishyy-backup-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2));toast('Backup exported.');}
   async function importBackup(file){if(!file)return;try{const data=JSON.parse(await file.text());if(data.format!=='fishy-study-plan-backup'||!data.studyPlan)throw new Error('This is not a valid Fishyy study-plan backup.');if(!confirm('Restore this backup? Existing plan data will be replaced.'))return;for(const s of STORES){const tx=db.transaction(s,'readwrite');tx.objectStore(s).clear();await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}for(const s of STORES){const vals=data.studyPlan[s]||[];if(vals.length)await bulkPut(s,vals);}if(data.legacy){for(const [k,v] of Object.entries(data.legacy))if(v!==null&&v!==undefined)localStorage.setItem(k,v);}await reload();await freezePastDays();renderCurrent();toast('Backup restored.');}catch(e){toast(e.message||'Backup restore failed.');}}
   async function clearPlanData(){if(!confirm('Clear all imported plans, timer records, scores, and exams from this browser?'))return;if(!confirm('This cannot be undone without a backup. Clear plan data now?'))return;for(const t of state.tasks)await queueGoogleDeletion(t);for(const s of ['tasks','imports','dailyScores','exams']){const tx=db.transaction(s,'readwrite');tx.objectStore(s).clear();await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}await reload();location.hash='today';renderCurrent();toast('Plan data cleared. Linked Google events will be removed on the next connected sync.');queueGoogleSync();}
-  function openLegacyTimer(){document.body.classList.remove('plan-mode','stats-view');location.hash='timer';}
+  function openLegacyTimer(){document.body.classList.remove('plan-mode','stats-view');location.hash='timer';renderCurrent();}
   function scheduleFreeze(){const now=new Date(),next=new Date(now);next.setHours(24,0,2,0);setTimeout(async()=>{await reload();await freezePastDays();renderCurrent();scheduleFreeze();},Math.min(2147483647,next-now));}
-  async function init(){try{db=await openDB();await reload();await freezePastDays();document.querySelectorAll('[data-plan-view]').forEach(b=>b.addEventListener('click',()=>location.hash=b.dataset.planView));document.getElementById('plan-modal').addEventListener('click',e=>{if(e.target.id==='plan-modal')closeModal();});window.addEventListener('hashchange',renderCurrent);window.addEventListener('online',queueGoogleSync);window.addEventListener('focus',queueGoogleSync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)queueGoogleSync();});if(!location.hash||location.hash==='#index')location.hash='today';else renderCurrent();scheduleFreeze();startGoogleAutoSync();setInterval(()=>{const el=document.querySelector('[data-live-task]');if(!el)return;const t=taskById(el.dataset.liveTask);if(!t)return;const sec=focusedSeconds(t),planned=plannedMinutes(t)*60;el.innerHTML=`${clockLabel(sec)} / ${clockLabel(planned)}<small>${clockLabel(Math.max(0,planned-sec))} planned remaining</small>`;},500);}catch(e){document.body.classList.add('plan-mode');document.getElementById('plan-today').classList.add('on');document.getElementById('plan-today').innerHTML=`<div class="empty-plan">IndexedDB could not be opened: ${safe(e.message)}. Check this browser's storage permissions.</div>`;}}
+  async function init(){try{db=await openDB();await reload();await freezePastDays();document.querySelectorAll('[data-plan-view]').forEach(b=>b.addEventListener('click',()=>location.hash=b.dataset.planView));document.getElementById('plan-modal').addEventListener('click',e=>{if(e.target.id==='plan-modal')closeModal();});window.addEventListener('hashchange',renderCurrent);window.addEventListener('online',queueGoogleSync);window.addEventListener('focus',queueGoogleSync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)queueGoogleSync();});if(!location.hash||location.hash==='#index')history.replaceState(null,'','#timer');renderCurrent();scheduleFreeze();startGoogleAutoSync();setInterval(()=>{const el=document.querySelector('[data-live-task]');if(!el)return;const t=taskById(el.dataset.liveTask);if(!t)return;const sec=focusedSeconds(t),planned=plannedMinutes(t)*60;el.innerHTML=`${clockLabel(sec)} / ${clockLabel(planned)}<small>${clockLabel(Math.max(0,planned-sec))} planned remaining</small>`;},500);}catch(e){const requested=(location.hash||'#timer').slice(1);document.body.classList.toggle('plan-mode',!['timer','stats'].includes(requested));if(!['timer','stats'].includes(requested)){document.getElementById('plan-today').classList.add('on');document.getElementById('plan-today').innerHTML=`<div class="empty-plan">IndexedDB could not be opened: ${safe(e.message)}. Check this browser's storage permissions.</div>`;}}}
   const api={init,handleFile,setMapping,selectSheet,previewImport,renderImportMapping,confirmImport,cancelImport,startTask,pauseTask,resumeTask,openActive,finishTask,confirmFinish,changeTask,saveTaskChange,subjectOverride,confirmOverride,taskDetails,editRecord,saveRecordEdit,carryForward,reschedule,confirmReschedule,markComplete,skipTask,deleteImport,shiftCalendar,setCalendarDate,openReview,shiftReview,exportBackup,importBackup,clearPlanData,saveGoogleConfig,connectGoogle,disconnectGoogle,syncGoogleCalendar,closeModal,openLegacyTimer};
   api.__test={parseCSV,parseDateValue,parseTimeValue,parseDuration,diffMinutes,scoreDay,focusedSeconds,statusOf,taskToGoogleEvent,googleEventChangesTask};
   return api;
