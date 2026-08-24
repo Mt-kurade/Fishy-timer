@@ -27,6 +27,17 @@ function loadRollover(context = {}) {
   return sandbox.api;
 }
 
+function loadRestoreHelpers(saved) {
+  const localStorage = {
+    getItem:key => key === 'study_autosave' ? JSON.stringify(saved) : null,
+    removeItem:()=>{}
+  };
+  const sandbox = vm.createContext({Date, JSON, localStorage, AUTOSAVE_KEY:'study_autosave'});
+  const names = ['todayStr', 'loadAutosave'];
+  vm.runInContext(`${names.map(functionSource).join('\n')}\nthis.api={${names.join(',')}};`, sandbox);
+  return sandbox.api;
+}
+
 test('finds the exact local-midnight boundary in a four-second run', () => {
   const api = loadRollover();
   const start = new Date(2026, 7, 24, 23, 59, 58).getTime();
@@ -70,4 +81,17 @@ test('splits every crossed day after a sleeping tab wakes up', () => {
   const start = new Date(2026, 7, 24, 23, 59, 58).getTime();
   const end = new Date(2026, 7, 27, 0, 0, 2).getTime();
   assert.equal(api.midnightBoundariesBetween(start, end).length, 3);
+});
+
+test('does not count time elapsed while the webpage was closed', () => {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+  const api = loadRestoreHelpers({
+    date,
+    t:120,
+    mode:'stopwatch',
+    wasRunning:true,
+    savedAtWall:Date.now()-60*60*1000
+  });
+  assert.equal(api.loadAutosave().t, 120);
 });

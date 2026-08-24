@@ -1251,8 +1251,7 @@ function todayStr(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+
 
 function autosave(){
   // Always save getCurrentT() (the live value), not the stale S.t.
-  // Also save the absolute wall-clock timestamp so we can compute
-  // how much extra time elapsed if the timer was running during a crash/restart.
+  // savedAtWall is the exact point where accounting stops if the page closes.
   const currentElapsed = getCurrentT();
   if(currentElapsed < 1 && !S.laps.length) return;
   try{
@@ -1288,19 +1287,8 @@ function loadAutosave(){
       return null;
     }
 
-    // If the timer was RUNNING when the save was written (crash/close mid-session),
-    // compute how much extra time elapsed between the save and now, and add it to t.
-    // This gives the most accurate possible restore after a computer restart.
-    if(saved.wasRunning && saved.savedAtWall){
-      const extraSec = (Date.now() - saved.savedAtWall) / 1000;
-      // Cap extra at 8 hours — beyond that something is clearly wrong
-      const cappedExtra = Math.min(extraSec, 8 * 3600);
-      if(saved.mode === 'countdown'){
-        saved.t = Math.max(0, saved.t - cappedExtra);
-      } else {
-        saved.t = saved.t + cappedExtra;
-      }
-    }
+    // Never add wall-clock time while the webpage was closed. A restored timer
+    // is paused and advances again only after an explicit [start].
     return saved;
   }catch{ return null; }
 }
@@ -1352,11 +1340,11 @@ function play(){
   startCalLive();
   reqWL(); updClock(); pushBowlState();
 }
-function pause(){
+function pause(at=Date.now()){
   if(!S.run&&S.startedAt===null)return;
-  const pauseWall=Date.now();
+  const pauseWall=at;
   splitActiveRunAtMidnight(pauseWall);
-  S.t=getCurrentT(); S.startedAt=null; S.run=false;
+  S.t=timerValueAt(pauseWall); S.startedAt=null; S.run=false;
   clearInterval(iv); iv=null;
   document.getElementById('sbtn').textContent='[ start ]';
   // Keep lap button enabled while paused so user can still save a lap
@@ -2476,13 +2464,14 @@ window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
     if(S.t > 0) document.getElementById('lbtn').disabled = false;
     const restoredFmt = fmt(Math.floor(S.t));
     if(saved.wasRunning){
-      // The restored elapsed value includes the time since the last autosave.
-      // Close that recovered run now, splitting it at any crossed midnights.
+      // Close the old run at its final saved instant, not at the reopening time.
+      // Time while the page was closed is deliberately excluded.
+      const closeAt = saved.savedAtWall || Date.now();
       S.run = true;
-      S.startedAt = Date.now();
-      if(S.calRunStartWall == null) S.calRunStartWall = saved.savedAtWall || Date.now();
-      pause();
-      showToast(`> session restored at ${restoredFmt} (was running — press start to continue)`);
+      S.startedAt = closeAt;
+      if(S.calRunStartWall == null) S.calRunStartWall = closeAt;
+      pause(closeAt);
+      showToast(`> session restored paused at ${restoredFmt} — press start to continue`);
     } else {
       showToast(`> session restored at ${restoredFmt}`);
     }
