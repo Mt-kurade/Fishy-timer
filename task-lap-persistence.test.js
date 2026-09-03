@@ -1,0 +1,67 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+
+const source = fs.readFileSync('index.html', 'utf8');
+
+function functionSource(name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `${name} must exist in index.html`);
+  const open = source.indexOf('{', start);
+  let depth = 0;
+  for (let i = open; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    if (source[i] === '}' && --depth === 0) return source.slice(start, i + 1);
+  }
+  throw new Error(`Could not extract ${name}`);
+}
+
+function loadCalendarModel() {
+  const stored = {};
+  const localStorage = {
+    getItem:key => stored[key] ?? null,
+    setItem:(key, value) => { stored[key] = value; }
+  };
+  const sandbox = vm.createContext({
+    Date, JSON, Number, Math, localStorage, CAL_KEY:'fishy_cal',
+    CAL_COLORS:new Array(12).fill({}), LC:new Array(8).fill('#aaa'),
+    S:{run:false, ls:0, t:0}, getCurrentT:()=>0, renderSess:()=>{}
+  });
+  const names = ['loadCalDay', 'buildCalEvents', 'getS', 'dayKey', 'dayKeyDate', 'syncSessionDayFromCalendar'];
+  vm.runInContext(`${names.map(functionSource).join('\n')}\nthis.api={${names.join(',')}};`, sandbox);
+  return {api:sandbox.api, stored};
+}
+
+test('pausing an unlapped task does not create a study block', () => {
+  const {api} = loadCalendarModel();
+  const events = api.buildCalEvents([
+    {type:'start', wall:1000, lapName:'study block', colorSeed:2},
+    {type:'pause', wall:13000}
+  ]);
+  assert.equal(events.length, 0);
+});
+
+test('pause and resume periods become one block only after lap', () => {
+  const {api, stored} = loadCalendarModel();
+  const key = '2026-9-3';
+  stored.fishy_cal = JSON.stringify({[key]:[
+    {type:'start', wall:1000, lapName:'study block', colorSeed:2},
+    {type:'pause', wall:13000},
+    {type:'start', wall:20000, lapName:'study block', colorSeed:2},
+    {type:'lap', wall:28000, name:'Biology'}
+  ]});
+
+  api.syncSessionDayFromCalendar(key);
+
+  const sessions = JSON.parse(stored.study_s);
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0].laps.length, 1);
+  assert.equal(sessions[0].laps[0].name, 'Biology');
+  assert.equal(sessions[0].laps[0].duration, 20);
+  assert.equal(sessions[0].laps[0].wallRuns.length, 2);
+});
+
+test('lap action immediately syncs the committed task', () => {
+  assert.match(functionSource('saveLap'), /saveCalSegment\(\{type:'lap'[\s\S]*syncSessionDayFromCalendar/);
+});

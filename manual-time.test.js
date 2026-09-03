@@ -37,7 +37,8 @@ test('Today task controls expose the worked-time adjustment', () => {
 
 test('confirmed worked time is copied into the shared daily tracker', () => {
   assert.match(functionSource('confirmWorkedTime'), /saveManualWorkedTime\(t\.date,seconds/);
-  assert.match(functionSource('calDayTotalFromSegments'), /s\.type === 'manual'/);
+  assert.match(functionSource('buildCalEvents'), /s\.type === 'manual'/);
+  assert.match(functionSource('calDayTotalFromSegments'), /ev\.committed/);
 });
 
 test('normal timer can only be started from the Start Timer button', () => {

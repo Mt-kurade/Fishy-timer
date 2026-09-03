@@ -1066,11 +1066,12 @@ function buildCalEvents(segs) {
   let runStart        = null;    // wall ms when current run segment started
   let isRunning       = false;
   let timerAtLapStart = 0;
+  let lapId           = 0;
   // All COMPLETED run segments for the current lap (not yet closed by lap/reset)
   let currentLapRuns  = [];
 
   // Emit one coloured block for a single run segment
-  function emitRun(startWall, endWall, isLive) {
+  function emitRun(startWall, endWall, isLive, committed = false) {
     const minMs = isLive ? 5000 : 1;  // live: 5s threshold; completed: preserve all positive time
     if (endWall - startWall < minMs) return;
     events.push({
@@ -1080,6 +1081,8 @@ function buildCalEvents(segs) {
       colorIdx,
       col:       CAL_COLORS[colorIdx % CAL_COLORS.length],
       live:      isLive || false,
+      committed,
+      lapId,
     });
   }
 
@@ -1091,7 +1094,7 @@ function buildCalEvents(segs) {
       runStart = null;
     }
     // Emit each run segment as its own block
-    currentLapRuns.forEach(r => emitRun(r.start, r.end, false));
+    currentLapRuns.forEach(r => emitRun(r.start, r.end, false, true));
     usedColorIdxs.add(colorIdx);
     currentLapRuns = [];
     isRunning = false;
@@ -1119,7 +1122,8 @@ function buildCalEvents(segs) {
         events.push({
           name:s.name || 'manually added time',
           startWall:manualEnd-durationMs, endWall:manualEnd,
-          colorIdx:0, col:CAL_COLORS[0], live:false, manual:true
+          colorIdx:0, col:CAL_COLORS[0], live:false, manual:true,
+          committed:true, lapId:`manual-${i}`
         });
       }
 
@@ -1135,22 +1139,26 @@ function buildCalEvents(segs) {
       // Apply user's name, close all run segments, reset for next lap
       lapName = s.name || lapName;
       closeCurrentLap(s.wall);
+      lapId++;
       lapName         = 'study block';
       timerAtLapStart = 0;
 
     } else if (s.type === 'reset') {
-      closeCurrentLap(s.wall);
+      // Reset discards an unfinished task. Only an explicit lap commits it.
+      runStart = null;
+      currentLapRuns = [];
+      isRunning = false;
+      lapId++;
       lapName         = 'study block';
       timerAtLapStart = 0;
     }
   }
 
-  // ── Emit completed run segments of the CURRENT (unfinished) lap ──────────
-  // These are past run segments within this lap that ended with a pause.
-  currentLapRuns.forEach(r => emitRun(r.start, r.end, false));
-
   // ── Live block: the currently open run segment ────────────────────────────
   if (isRunning && runStart !== null && S.run) {
+    // Previous run periods are shown only as a temporary preview while this
+    // task is active. They are not committed until the user presses [lap].
+    currentLapRuns.forEach(r => emitRun(r.start, r.end, false, false));
     // endWall = runStart + elapsed within this specific run segment
     // Use timerElapsed - timerAtLapStart to get elapsed since lap began,
     // then subtract completed run time to get elapsed in THIS segment only.
@@ -1159,7 +1167,7 @@ function buildCalEvents(segs) {
     const segElapsedMs   = lapElapsedMs - completedRunMs;
     const liveEndWall    = runStart + Math.max(0, segElapsedMs);
 
-    emitRun(runStart, liveEndWall, true);
+    emitRun(runStart, liveEndWall, true, false);
   }
 
   return events;
@@ -1286,6 +1294,7 @@ function processCmd(){
         const commandLapWall = Date.now();
         splitActiveRunAtMidnight(commandLapWall);
         saveCalSegment({type:'lap', wall:commandLapWall, name:p.name});
+        syncSessionDayFromCalendar(wallDayKey(commandLapWall));
         currentLapName = `block ${S.laps.length + 1}`;
         currentCalColorSeed = Math.floor(Math.random() * 12);
         S.calRunStartWall = commandLapWall + 1;
@@ -1461,6 +1470,7 @@ function saveLap(){
   const lapWall = Date.now();
   splitActiveRunAtMidnight(lapWall);
   saveCalSegment({type:'lap', wall:lapWall, name});
+  syncSessionDayFromCalendar(wallDayKey(lapWall));
   currentLapName = `block ${S.laps.length + 1}`;
   // Only write new 'start' segment if timer is running (not paused)
   // If paused, the next play() will write the start segment
@@ -1551,7 +1561,7 @@ function dayKeyDate(key) {
 // Persist the calendar's completed run time as daily history. This makes an
 // ordinary pause/reset a real save even when the user never pressed [lap].
 function syncSessionDayFromCalendar(key) {
-  const events = buildCalEvents(loadCalDay(key)).filter(ev => !ev.live);
+  const events = buildCalEvents(loadCalDay(key)).filter(ev => ev.committed);
   const all = getS();
   if (!events.length) {
     const remaining = all.filter(s => !(s.calendarSynced && dayKey(s.date) === key));
@@ -1562,13 +1572,26 @@ function syncSessionDayFromCalendar(key) {
     return;
   }
   let cursor = 0;
-  const laps = events.map((ev, i) => {
-    const duration = Math.max(0, (ev.endWall - ev.startWall) / 1000);
+  const groups = [];
+  events.forEach(ev => {
+    const groupKey = `${ev.manual ? 'manual' : 'lap'}:${ev.lapId}`;
+    let group = groups.find(g => g.key === groupKey);
+    if (!group) {
+      group = {key:groupKey, name:ev.name, colorIdx:ev.colorIdx, manual:!!ev.manual, events:[]};
+      groups.push(group);
+    }
+    group.events.push(ev);
+  });
+  const laps = groups.map((group, i) => {
+    const duration = group.events.reduce((sum, ev) => sum + Math.max(0, (ev.endWall - ev.startWall) / 1000), 0);
+    const wallStart = Math.min(...group.events.map(ev => ev.startWall));
+    const wallEnd = Math.max(...group.events.map(ev => ev.endWall));
     const lap = {
-      name:ev.name || 'study block', start:cursor, end:cursor+duration,
-      duration, ci:(ev.colorIdx ?? i) % LC.length,
-      wallStart:ev.startWall, wallEnd:ev.endWall,
-      calendarType:ev.manual ? 'manual' : 'run'
+      name:group.name || 'study block', start:cursor, end:cursor+duration,
+      duration, ci:(group.colorIdx ?? i) % LC.length,
+      wallStart, wallEnd,
+      wallRuns:group.events.map(ev => ({start:ev.startWall, end:ev.endWall})),
+      calendarType:group.manual ? 'manual' : 'run'
     };
     cursor += duration;
     return lap;
@@ -1584,24 +1607,12 @@ function syncSessionDayFromCalendar(key) {
 // Calculate the true total studied time for a day by summing calendar run segments.
 // This is the source of truth — immune to midnight-crossing bugs.
 function calDayTotalFromSegments(dayKeyStr) {
-  const segs = loadCalDay(dayKeyStr);
-  let total = 0;
-  let runStart = null;
-  for (const s of segs) {
-    if (s.type === 'manual') {
-      total += Math.max(0, Number(s.seconds) || 0) * 1000;
-    } else if (s.type === 'start') {
-      runStart = s.wall;
-    } else if ((s.type === 'pause' || s.type === 'lap' || s.type === 'reset') && runStart !== null) {
-      total += s.wall - runStart;
-      runStart = null;
-    }
-  }
-  // If still running (open segment), add elapsed to now
-  if (runStart !== null && S.run) {
-    total += Date.now() - runStart;
-  }
-  return Math.round(total / 1000);  // return seconds, same unit as lap.duration
+  const committed = buildCalEvents(loadCalDay(dayKeyStr)).filter(ev => ev.committed);
+  let total = committed.reduce((sum, ev) => sum + Math.max(0, ev.endWall - ev.startWall), 0) / 1000;
+  // Keep the main timer and goal responsive while a task is pending, without
+  // persisting that task as a study block before [lap] is pressed.
+  if (dayKeyStr === todayKey()) total += Math.max(0, getCurrentT() - S.ls);
+  return Math.round(total);
 }
 function clearSessions(){if(!confirm('delete all saved sessions?'))return;localStorage.removeItem('study_s');renderSess();refreshTracker();}
 function renderSess(){
@@ -1748,6 +1759,7 @@ function editMergeAll() {
     wallEnd: Number.isFinite(Number(editLaps[0].wallStart))
       ? Number(editLaps[0].wallStart) + editLaps.reduce((a,l) => a + l.duration, 0) * 1000
       : editLaps[editLaps.length - 1].wallEnd,
+    wallRuns: editLaps.flatMap(l => Array.isArray(l.wallRuns) ? l.wallRuns : [{start:l.wallStart, end:l.wallEnd}]),
     calendarType: editLaps.every(l => l.calendarType === 'manual') ? 'manual' : 'run',
   };
   editLaps = [merged];
@@ -1815,8 +1827,13 @@ function replaceCalendarDayFromEditedLaps(key, laps) {
       if (lap.calendarType === 'manual') {
         segs.push({type:'manual', wall:end, seconds:Math.max(0, Number(lap.duration) || (end-start)/1000), name:lap.name || 'manually added time'});
       } else {
-        segs.push({type:'start', wall:start, lapName:lap.name || 'study block', colorSeed:(lap.ci ?? i) % CAL_COLORS.length, timerAtLapStart:0});
-        segs.push({type:'lap', wall:end, name:lap.name || 'study block'});
+        const runs = (Array.isArray(lap.wallRuns) && lap.wallRuns.length ? lap.wallRuns : [{start, end}])
+          .filter(run => Number.isFinite(Number(run.start)) && Number.isFinite(Number(run.end)) && Number(run.end) > Number(run.start));
+        runs.forEach((run, runIdx) => {
+          segs.push({type:'start', wall:Number(run.start), lapName:lap.name || 'study block', colorSeed:(lap.ci ?? i) % CAL_COLORS.length, timerAtLapStart:0});
+          if (runIdx < runs.length - 1) segs.push({type:'pause', wall:Number(run.end)});
+          else segs.push({type:'lap', wall:Number(run.end), name:lap.name || 'study block'});
+        });
       }
     });
     // Editing completed records must not stop or erase a currently running block.
