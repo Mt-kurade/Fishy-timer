@@ -791,14 +791,18 @@ function saveManualWorkedTime(dateStr, seconds, name, note = '') {
 }
 
 function clearCalDay() {
-  if (!confirm('clear all calendar data for this day?')) return;
+  if (!confirm('Permanently delete every study record for this day? This will also remove the time from your daily goal and stats.')) return;
+  const key = calDayKey(calDayOffset);
   try {
     const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
-    const key = calDayKey(calDayOffset);
     delete all[key];
     localStorage.setItem(CAL_KEY, JSON.stringify(all));
   } catch {}
+  syncSessionDayFromCalendar(key);
+  calRenderState = null;
   renderCal();
+  renderLaps();
+  refreshTracker();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1548,20 +1552,28 @@ function dayKeyDate(key) {
 // ordinary pause/reset a real save even when the user never pressed [lap].
 function syncSessionDayFromCalendar(key) {
   const events = buildCalEvents(loadCalDay(key)).filter(ev => !ev.live);
-  if (!events.length) return;
+  const all = getS();
+  if (!events.length) {
+    const remaining = all.filter(s => !(s.calendarSynced && dayKey(s.date) === key));
+    if (remaining.length !== all.length) {
+      localStorage.setItem('study_s', JSON.stringify(remaining));
+      renderSess();
+    }
+    return;
+  }
   let cursor = 0;
   const laps = events.map((ev, i) => {
     const duration = Math.max(0, (ev.endWall - ev.startWall) / 1000);
     const lap = {
       name:ev.name || 'study block', start:cursor, end:cursor+duration,
       duration, ci:(ev.colorIdx ?? i) % LC.length,
-      wallStart:ev.startWall, wallEnd:ev.endWall
+      wallStart:ev.startWall, wallEnd:ev.endWall,
+      calendarType:ev.manual ? 'manual' : 'run'
     };
     cursor += duration;
     return lap;
   }).filter(l => l.duration > 0);
   if (!laps.length) return;
-  const all = getS();
   const idx = all.findIndex(s => dayKey(s.date) === key);
   const record = {date:dayKeyDate(key), laps, total:Math.round(cursor), calendarSynced:true};
   if (idx >= 0) all[idx] = record; else all.unshift(record);
@@ -1712,6 +1724,10 @@ function renderEditBody() {
 }
 
 function editDeleteLap(i) {
+  const lap = editLaps[i];
+  if (!lap) return;
+  const label = lap.name || `block ${i + 1}`;
+  if (!confirm(`Permanently delete "${label}"? Its calendar entry and time in your daily goal and stats will also be removed.`)) return;
   editLaps.splice(i, 1);
   renderEditBody();
 }
@@ -1726,6 +1742,13 @@ function editMergeAll() {
     end:      editLaps[editLaps.length - 1].end,
     duration: editLaps.reduce((a,l) => a + l.duration, 0),
     ci:       editLaps[0].ci,
+    wallStart: editLaps[0].wallStart,
+    // A merged record represents focused time only; do not accidentally turn
+    // pauses between the old blocks into extra studied time.
+    wallEnd: Number.isFinite(Number(editLaps[0].wallStart))
+      ? Number(editLaps[0].wallStart) + editLaps.reduce((a,l) => a + l.duration, 0) * 1000
+      : editLaps[editLaps.length - 1].wallEnd,
+    calendarType: editLaps.every(l => l.calendarType === 'manual') ? 'manual' : 'run',
   };
   editLaps = [merged];
   renderEditBody();
@@ -1747,6 +1770,9 @@ function editDrop(e, i) {
 function saveEditModal() {
   if (editIdx === null) return;
   const all = getS();
+  const original = all[editIdx];
+  if (!original) return;
+  const key = dayKey(original.date);
   if (editLaps.length === 0) {
     // Delete entire day entry if all laps removed
     all.splice(editIdx, 1);
@@ -1755,10 +1781,51 @@ function saveEditModal() {
     all[editIdx].total = editLaps.reduce((a,l) => a + l.duration, 0);
   }
   localStorage.setItem('study_s', JSON.stringify(all));
+  if (original.calendarSynced) {
+    replaceCalendarDayFromEditedLaps(key, editLaps);
+    syncSessionDayFromCalendar(key);
+    calRenderState = null;
+    renderCal();
+  }
   closeEditModal();
   renderSess();
   renderLaps();  // refresh today's laps view if editing today
   refreshTracker();
+}
+
+// Calendar-derived history has two persisted representations: the raw event
+// stream used by the calendar/goal, and the convenient daily record used by
+// history/stats. Rebuild the former whenever the user saves history edits so a
+// deleted block cannot be restored by the next calendar sync.
+function replaceCalendarDayFromEditedLaps(key, laps) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
+    const existing = Array.isArray(all[key]) ? all[key] : [];
+    let liveStart = null;
+    existing.forEach(seg => {
+      if (seg.type === 'start') liveStart = seg;
+      else if (seg.type === 'pause' || seg.type === 'lap' || seg.type === 'reset') liveStart = null;
+    });
+    const ordered = laps
+      .filter(l => Number.isFinite(Number(l.wallStart)) && Number.isFinite(Number(l.wallEnd)) && Number(l.wallEnd) > Number(l.wallStart))
+      .sort((a,b) => Number(a.wallStart) - Number(b.wallStart));
+    const segs = [];
+    ordered.forEach((lap, i) => {
+      const start = Number(lap.wallStart), end = Number(lap.wallEnd);
+      if (lap.calendarType === 'manual') {
+        segs.push({type:'manual', wall:end, seconds:Math.max(0, Number(lap.duration) || (end-start)/1000), name:lap.name || 'manually added time'});
+      } else {
+        segs.push({type:'start', wall:start, lapName:lap.name || 'study block', colorSeed:(lap.ci ?? i) % CAL_COLORS.length, timerAtLapStart:0});
+        segs.push({type:'lap', wall:end, name:lap.name || 'study block'});
+      }
+    });
+    // Editing completed records must not stop or erase a currently running block.
+    if (key === todayKey() && S.run && liveStart) {
+      segs.push(liveStart);
+    }
+    if (segs.length) all[key] = segs; else delete all[key];
+    localStorage.setItem(CAL_KEY, JSON.stringify(all));
+  } catch {}
 }
 
 // ── Document PiP / popup ──────────────────────────────────────────────────────
