@@ -1087,11 +1087,30 @@ function buildCalEvents(segs) {
   }
 
   // Flush all completed runs for the current lap (called on lap/reset)
-  function closeCurrentLap(endWall) {
+  function closeCurrentLap(endWall, durationOverride = null) {
     // Close any open run segment first
     if (runStart !== null) {
       currentLapRuns.push({ start: runStart, end: endWall });
       runStart = null;
+    }
+    // A user can manually adjust the stopwatch before lapping. The lap's timer
+    // duration is authoritative; extend/trim the recorded run periods so the
+    // calendar, history, and daily goal all save the displayed amount.
+    const requestedMs = Number(durationOverride) * 1000;
+    if (currentLapRuns.length && Number.isFinite(requestedMs) && requestedMs > 0) {
+      const actualMs = currentLapRuns.reduce((sum, r) => sum + Math.max(0, r.end-r.start), 0);
+      let delta = requestedMs - actualMs;
+      if (delta > 0) {
+        currentLapRuns[0] = {...currentLapRuns[0], start:currentLapRuns[0].start-delta};
+      } else if (delta < 0) {
+        let remove = -delta;
+        currentLapRuns = currentLapRuns.map(r => {
+          const duration = Math.max(0, r.end-r.start);
+          const trimmed = Math.min(remove, duration);
+          remove -= trimmed;
+          return {...r, start:r.start+trimmed};
+        }).filter(r => r.end > r.start);
+      }
     }
     // Emit each run segment as its own block
     currentLapRuns.forEach(r => emitRun(r.start, r.end, false, true));
@@ -1138,7 +1157,7 @@ function buildCalEvents(segs) {
     } else if (s.type === 'lap') {
       // Apply user's name, close all run segments, reset for next lap
       lapName = s.name || lapName;
-      closeCurrentLap(s.wall);
+      closeCurrentLap(s.wall, s.duration);
       lapId++;
       lapName         = 'study block';
       timerAtLapStart = 0;
@@ -1293,7 +1312,7 @@ function processCmd(){
         S.ls = p.end;
         const commandLapWall = Date.now();
         splitActiveRunAtMidnight(commandLapWall);
-        saveCalSegment({type:'lap', wall:commandLapWall, name:p.name});
+        saveCalSegment({type:'lap', wall:commandLapWall, name:p.name, duration:p.duration});
         syncSessionDayFromCalendar(wallDayKey(commandLapWall));
         currentLapName = `block ${S.laps.length + 1}`;
         currentCalColorSeed = Math.floor(Math.random() * 12);
@@ -1463,13 +1482,14 @@ function triggerLap(){
 }
 function saveLap(){
   const name=document.getElementById('linput').value.trim()||`block ${S.laps.length+1}`;
-  S.laps.push({...S.pend,name,ci:S.laps.length%LC.length});
+  const completedLap={...S.pend,name,ci:S.laps.length%LC.length};
+  S.laps.push(completedLap);
   S.ls=S.pend.end; S.pend=null;
   document.getElementById('lap-modal').style.display='none';
   // Record lap event — closes current block with user's chosen name
   const lapWall = Date.now();
   splitActiveRunAtMidnight(lapWall);
-  saveCalSegment({type:'lap', wall:lapWall, name});
+  saveCalSegment({type:'lap', wall:lapWall, name, duration:completedLap.duration});
   syncSessionDayFromCalendar(wallDayKey(lapWall));
   currentLapName = `block ${S.laps.length + 1}`;
   // Only write new 'start' segment if timer is running (not paused)

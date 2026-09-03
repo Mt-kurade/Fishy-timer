@@ -65,3 +65,24 @@ test('pause and resume periods become one block only after lap', () => {
 test('lap action immediately syncs the committed task', () => {
   assert.match(functionSource('saveLap'), /saveCalSegment\(\{type:'lap'[\s\S]*syncSessionDayFromCalendar/);
 });
+
+test('a lap saves manually added stopwatch time, not only wall-clock time', () => {
+  const {api, stored} = loadCalendarModel();
+  const key = '2026-9-3';
+  stored.fishy_cal = JSON.stringify({[key]:[
+    {type:'start', wall:61000, lapName:'study block', colorSeed:2},
+    // Ten real seconds plus one manually added minute equals 70 seconds.
+    {type:'lap', wall:71000, name:'Chemistry', duration:70}
+  ]});
+
+  api.syncSessionDayFromCalendar(key);
+
+  const lap = JSON.parse(stored.study_s)[0].laps[0];
+  assert.equal(lap.duration, 70);
+  assert.equal(lap.wallEnd-lap.wallStart, 70000);
+});
+
+test('normal and pop-out lap events persist their displayed duration', () => {
+  assert.match(functionSource('saveLap'), /type:'lap'[\s\S]*duration:completedLap\.duration/);
+  assert.match(functionSource('processCmd'), /type:'lap'[\s\S]*duration:p\.duration/);
+});
