@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const source = fs.readFileSync('index.html', 'utf8');
+const popupSource = fs.readFileSync('bowl-popup.html', 'utf8');
 
 function functionSource(name) {
   const start = source.indexOf(`function ${name}(`);
@@ -85,4 +86,25 @@ test('a lap saves manually added stopwatch time, not only wall-clock time', () =
 test('normal and pop-out lap events persist their displayed duration', () => {
   assert.match(functionSource('saveLap'), /type:'lap'[\s\S]*duration:completedLap\.duration/);
   assert.match(functionSource('processCmd'), /type:'lap'[\s\S]*duration:p\.duration/);
+});
+
+test('stopwatch lap duration equals the value displayed on the timer', () => {
+  const sandbox = vm.createContext({Number, Math, S:{mode:'stopwatch', ls:4148}});
+  vm.runInContext(`${functionSource('lapTiming')}\nthis.lapTiming=lapTiming;`, sandbox);
+  const timing = sandbox.lapTiming(4159, 'stopwatch', 4148);
+  assert.equal(timing.start, 0);
+  assert.equal(timing.end, 4159);
+  assert.equal(timing.duration, 4159);
+});
+
+test('saving a stopwatch lap resets the next block to zero', () => {
+  const save = functionSource('saveLap');
+  assert.match(save, /S\.mode === 'stopwatch'/);
+  assert.match(save, /S\.t=0; S\.ls=0/);
+  assert.match(save, /updClock\(\)/);
+});
+
+test('both pop-out timer variants show the full stopwatch value in the lap modal', () => {
+  assert.match(source, /const start=st\.mode==='stopwatch'\?0:st\.ls;const dur=now-start/);
+  assert.match(popupSource, /const start = st\.mode === 'stopwatch' \? 0 : st\.ls;/);
 });

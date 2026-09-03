@@ -1314,6 +1314,9 @@ function processCmd(){
         splitActiveRunAtMidnight(commandLapWall);
         saveCalSegment({type:'lap', wall:commandLapWall, name:p.name, duration:p.duration});
         syncSessionDayFromCalendar(wallDayKey(commandLapWall));
+        if(S.mode === 'stopwatch') {
+          S.t=0; S.ls=0; S.startedAt=commandLapWall; S.sessionStartWall=commandLapWall;
+        }
         currentLapName = `block ${S.laps.length + 1}`;
         currentCalColorSeed = Math.floor(Math.random() * 12);
         S.calRunStartWall = commandLapWall + 1;
@@ -1383,6 +1386,13 @@ function getCurrentT(){
   if(!S.run||S.startedAt===null)return S.t;
   const elapsed=Math.max(0,(Date.now()-S.startedAt)/1000);
   return S.mode==='countdown'?Math.max(0,S.t-elapsed):S.t+elapsed;
+}
+function lapTiming(now, mode = S.mode, previousLapEnd = S.ls) {
+  const end = Math.max(0, Number(now) || 0);
+  // Stopwatch blocks represent exactly what the clock shows. After saving one,
+  // the stopwatch starts the next block at zero.
+  const start = mode === 'stopwatch' ? 0 : Math.max(0, Number(previousLapEnd) || 0);
+  return {start, end, duration:Math.max(0, end-start)};
 }
 
 // ── Display ───────────────────────────────────────────────────────────────────
@@ -1471,10 +1481,10 @@ function triggerLap(){
   // Allow lapping while running OR while paused (as long as there's elapsed time)
   const now = getCurrentT();
   if(now < 1) return;
-  const dur = now - S.ls;
-  if(dur < 1) return;
-  S.pend={start:S.ls, end:now, duration:dur};
-  document.getElementById('mdur').textContent=fmt(dur);
+  const timing = lapTiming(now);
+  if(timing.duration < 1) return;
+  S.pend=timing;
+  document.getElementById('mdur').textContent=fmt(timing.duration);
   document.getElementById('linput').value='';
   document.getElementById('lap-modal').style.display='flex';
   renderTagChips();
@@ -1491,6 +1501,11 @@ function saveLap(){
   splitActiveRunAtMidnight(lapWall);
   saveCalSegment({type:'lap', wall:lapWall, name, duration:completedLap.duration});
   syncSessionDayFromCalendar(wallDayKey(lapWall));
+  if(S.mode === 'stopwatch') {
+    S.t=0; S.ls=0;
+    S.startedAt=S.run ? lapWall : null;
+    S.sessionStartWall=S.run ? lapWall : null;
+  }
   currentLapName = `block ${S.laps.length + 1}`;
   // Only write new 'start' segment if timer is running (not paused)
   // If paused, the next play() will write the start segment
@@ -1504,7 +1519,8 @@ function saveLap(){
       timerAtLapStart: getCurrentT()
     });
   }
-  autosave(); renderLaps(); pushBowlState(); refreshTracker();
+  if(!S.run && S.mode === 'stopwatch') document.getElementById('lbtn').disabled=true;
+  autosave(); updClock(); renderLaps(); pushBowlState(); refreshTracker();
 }
 function cancelLap(){S.pend=null;document.getElementById('lap-modal').style.display='none';}
 function clearLaps(){
@@ -1990,8 +2006,8 @@ function buildBowlInPip(pw){
   doc.getElementById('sbtn').onclick=()=>sendCmd(st.run?'pause':'start');
   doc.getElementById('rbtn').onclick=()=>sendCmd('reset');
   doc.getElementById('lbtn').onclick=()=>{
-    if(!st.run)return;const now=curT();const dur=now-st.ls;if(dur<1)return;
-    pend={start:st.ls,end:now,duration:dur};
+    if(!st.run)return;const now=curT();const start=st.mode==='stopwatch'?0:st.ls;const dur=now-start;if(dur<1)return;
+    pend={start,end:now,duration:dur};
     doc.getElementById('ldur').textContent=fmt(dur);doc.getElementById('linput').value='';
     doc.getElementById('lap-ovl').style.display='flex';setTimeout(()=>doc.getElementById('linput').focus(),30);
   };

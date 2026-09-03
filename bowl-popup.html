@@ -347,9 +347,10 @@ function doReset()  { sendCmd('reset'); }
 function doLap() {
   if (!st.run) return;
   const now = curT();
-  const dur = now - st.ls;
+  const start = st.mode === 'stopwatch' ? 0 : st.ls;
+  const dur = now - start;
   if (dur < 1) return;
-  pend = { start: st.ls, end: now, duration: dur };
+  pend = { start, end: now, duration: dur };
   document.getElementById('ldur').textContent = fmt(dur);
   document.getElementById('linput').value = '';
   document.getElementById('lap-ovl').style.display = 'flex';
