@@ -108,3 +108,33 @@ test('both pop-out timer variants show the full stopwatch value in the lap modal
   assert.match(source, /const start=st\.mode==='stopwatch'\?0:st\.ls;const dur=now-start/);
   assert.match(popupSource, /const start = st\.mode === 'stopwatch' \? 0 : st\.ls;/);
 });
+
+test('saved laps are revealed in the lower-right editable history list', () => {
+  const render = functionSource('renderSess');
+  assert.match(render, /openEditModal\(/);
+  assert.match(render, /el\.scrollTop=0/);
+  assert.match(functionSource('saveLap'), /backfillCalendarLapDurations[\s\S]*syncSessionDayFromCalendar/);
+});
+
+test('older displayed lap durations are repaired before history is synchronized', () => {
+  const key = '2026-9-3';
+  const stored = {fishy_cal:JSON.stringify({[key]:[
+    {type:'start', wall:1000},
+    {type:'lap', wall:16000, name:'Computer science'}
+  ]})};
+  const localStorage = {
+    getItem:name => stored[name] ?? null,
+    setItem:(name, value) => { stored[name] = value; }
+  };
+  const sandbox = vm.createContext({JSON, Number, localStorage, CAL_KEY:'fishy_cal'});
+  vm.runInContext(`${functionSource('backfillCalendarLapDurations')}\nthis.repair=backfillCalendarLapDurations;`, sandbox);
+
+  assert.equal(sandbox.repair(key, [{duration:4159}]), true);
+  assert.equal(JSON.parse(stored.fishy_cal)[key][1].duration, 4159);
+});
+
+test('statistics do not count laps twice after editable history is created', () => {
+  assert.match(functionSource('daySessionCount'), /currentLapsMissingFromHistory/);
+  assert.match(functionSource('computeTotals'), /currentLapsMissingFromHistory/);
+  assert.match(functionSource('lapsInRange'), /currentLapsMissingFromHistory/);
+});

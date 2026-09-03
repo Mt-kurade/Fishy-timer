@@ -765,6 +765,33 @@ function saveCalSegment(seg, dayKeyOverride = null) {
   } catch {}
 }
 
+// Older timer state can still contain the correct displayed lap duration even
+// when an earlier calendar event saved only a few seconds of wall-clock time.
+// Reattach those authoritative durations before rebuilding editable history.
+function backfillCalendarLapDurations(key, laps) {
+  if (!Array.isArray(laps) || !laps.length) return false;
+  try {
+    const all = JSON.parse(localStorage.getItem(CAL_KEY) || '{}');
+    const segs = Array.isArray(all[key]) ? all[key] : [];
+    const lapSegs = segs.filter(seg => seg.type === 'lap');
+    const count = Math.min(lapSegs.length, laps.length);
+    let changed = false;
+    for (let offset = 1; offset <= count; offset++) {
+      const duration = Number(laps[laps.length-offset]?.duration);
+      const seg = lapSegs[lapSegs.length-offset];
+      if (Number.isFinite(duration) && duration > 0 && Number(seg.duration) !== duration) {
+        seg.duration = duration;
+        changed = true;
+      }
+    }
+    if (changed) {
+      all[key] = segs;
+      localStorage.setItem(CAL_KEY, JSON.stringify(all));
+    }
+    return changed;
+  } catch { return false; }
+}
+
 // Manual task adjustments use the same persisted history stream as the normal
 // timer so Today, the daily goal, streaks, and stats all agree.
 function legacyDayKeyFromPlanDate(dateStr) {
@@ -1313,6 +1340,7 @@ function processCmd(){
         const commandLapWall = Date.now();
         splitActiveRunAtMidnight(commandLapWall);
         saveCalSegment({type:'lap', wall:commandLapWall, name:p.name, duration:p.duration});
+        backfillCalendarLapDurations(wallDayKey(commandLapWall), S.laps);
         syncSessionDayFromCalendar(wallDayKey(commandLapWall));
         if(S.mode === 'stopwatch') {
           S.t=0; S.ls=0; S.startedAt=commandLapWall; S.sessionStartWall=commandLapWall;
@@ -1500,6 +1528,7 @@ function saveLap(){
   const lapWall = Date.now();
   splitActiveRunAtMidnight(lapWall);
   saveCalSegment({type:'lap', wall:lapWall, name, duration:completedLap.duration});
+  backfillCalendarLapDurations(wallDayKey(lapWall), S.laps);
   syncSessionDayFromCalendar(wallDayKey(lapWall));
   if(S.mode === 'stopwatch') {
     S.t=0; S.ls=0;
@@ -1556,6 +1585,10 @@ function renderLaps(){
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 function getS(){try{return JSON.parse(localStorage.getItem('study_s')||'[]');}catch{return[];}}
+function currentLapsMissingFromHistory(){
+  const today = getS().find(s => dayKey(s.date) === todayKey());
+  return today?.calendarSynced ? [] : S.laps;
+}
 function lapDurationSeconds(lap){
   const duration=Number(lap?.duration);
   return Number.isFinite(duration)&&duration>0?duration:0;
@@ -1673,6 +1706,9 @@ function renderSess(){
       <div class="sdesc" onclick="viewSess(${origIdx})" style="cursor:pointer;">${s.laps.length} block${s.laps.length===1?'':'s'} · ${s.laps.map(l=>esc(l.name)).join(', ').substring(0,60)}</div>
     </div>`;
   }).join('');
+  // Newly saved laps are grouped in today's editable row, which is sorted
+  // first. Always reveal it instead of leaving the list at an older scroll.
+  el.scrollTop=0;
 }
 function viewSess(i){
   const s=getS()[i];if(!s)return;
@@ -2211,7 +2247,7 @@ function daySessionCount(key){
   const all = getS();
   const entry = all.find(s => dayKey(s.date) === key);
   let count = entry ? entry.laps.length : 0;
-  if(key === todayKey()) count += S.laps.length;
+  if(key === todayKey()) count += currentLapsMissingFromHistory().length;
   return count;
 }
 
@@ -2249,7 +2285,7 @@ function computeTotals(){
   const map = dayTotalsMap();
   const all = getS();
   const seconds  = Object.values(map).reduce((a,b)=>a+b, 0);
-  const sessions = all.reduce((a,s)=>a+(s.laps ? s.laps.length : 0), 0) + S.laps.length;
+  const sessions = all.reduce((a,s)=>a+(s.laps ? s.laps.length : 0), 0) + currentLapsMissingFromHistory().length;
   return { sessions, seconds };
 }
 
@@ -2303,7 +2339,7 @@ function lapsInRange(startDate, endDate){
     if(dT >= sT && dT <= eT) (s.laps||[]).forEach(l => out.push(l));
   });
   const tk = todayKey(), tD = keyToDate(tk);
-  if(tD >= sT && tD <= eT) S.laps.forEach(l => out.push(l));
+  if(tD >= sT && tD <= eT) currentLapsMissingFromHistory().forEach(l => out.push(l));
   return out;
 }
 
@@ -2330,7 +2366,7 @@ function renderTagChips(){
   const freq = {}, order = [];
   const record = nm => { const t=nm.trim(); if(!t || /^block\s*\d+$/i.test(t)) return; if(!(t in freq)) order.push(t); freq[t]=(freq[t]||0)+1; };
   getS().forEach(s => (s.laps||[]).forEach(l => record(l.name || '')));
-  S.laps.forEach(l => record(l.name || ''));
+  currentLapsMissingFromHistory().forEach(l => record(l.name || ''));
   const top = order.sort((a,b)=>freq[b]-freq[a]).slice(0, 6);
   wrap.innerHTML = top.length ? top.map(n =>
     `<button type="button" class="tag-chip" onclick="pickTagChip(this.textContent)">${esc(n)}</button>`
@@ -2629,6 +2665,7 @@ window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
     S.calRunStartWall = saved.calRunStartWall ?? null;
     currentLapName = saved.currentLapName || 'study block';
     currentCalColorSeed = saved.currentCalColorSeed ?? 0;
+    backfillCalendarLapDurations(todayKey(), S.laps);
     document.getElementById('btn-sw').classList.toggle('on', S.mode==='stopwatch');
     document.getElementById('btn-cd').classList.toggle('on', S.mode==='countdown');
     if(S.t > 0) document.getElementById('lbtn').disabled = false;
@@ -2646,6 +2683,9 @@ window.addEventListener('pagehide',      ()=>{ autosave(); pushBowlState(); });
       showToast(`> session restored at ${restoredFmt}`);
     }
   }
+  // Reconcile autosaved laps into the lower-right editable history immediately
+  // after loading, including sessions created by older Fishyy versions.
+  syncSessionDayFromCalendar(todayKey());
   pushBowlState(); updClock(); renderLaps(); renderSess(); refreshTracker();
 })();
 
