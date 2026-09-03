@@ -34,3 +34,15 @@ test('Today task controls expose the worked-time adjustment', () => {
   assert.match(functionSource('taskRow'), /PlanApp\.addWorkedTime/);
   assert.match(functionSource('activeMarkup'), /PlanApp\.addWorkedTime/);
 });
+
+test('confirmed worked time is copied into the shared daily tracker', () => {
+  assert.match(functionSource('confirmWorkedTime'), /saveManualWorkedTime\(t\.date,seconds/);
+  assert.match(functionSource('calDayTotalFromSegments'), /s\.type === 'manual'/);
+});
+
+test('normal timer can only be started from the Start Timer button', () => {
+  assert.match(source, /id="sbtn" onclick="toggleTimer\(\)"[^>]*>\[ start timer \]/);
+  assert.doesNotMatch(source, /case ' ':e\.preventDefault\(\);toggleTimer\(\)/);
+  assert.match(source, /let lastCmdTs = \(\(\)=>\{/);
+  assert.match(source, /localStorage\.getItem\(CMD_KEY\)/);
+});

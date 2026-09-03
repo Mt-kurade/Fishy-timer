@@ -503,14 +503,14 @@
     </div>
     <div class="controls">
       <button class="btn red" onclick="resetTimer()">[ reset ]</button>
-      <button class="btn main" id="sbtn" onclick="toggleTimer()">[ start ]</button>
+      <button class="btn main" id="sbtn" onclick="toggleTimer()">[ start timer ]</button>
       <button class="btn lap-b" id="lbtn" onclick="triggerLap()" disabled>[ lap ]</button>
     </div>
     <div class="controls" style="margin-top:-0.5rem;">
       <button class="btn popout" id="popout-btn" onclick="toggleBowl()">&gt;º)&gt; pop-out timer</button>
     </div>
     <div class="tips">
-      <span><span class="k">space</span> play/pause</span>
+      <span>use <span class="k">start timer</span> to begin</span>
       <span><span class="k">L</span> lap</span>
       <span><span class="k">R</span> reset</span>
       <span><span class="k">↑↓</span> ±60s</span>
@@ -763,6 +763,31 @@ function saveCalSegment(seg, dayKeyOverride = null) {
     if (keys.length > 200) delete all[keys[0]];
     localStorage.setItem(CAL_KEY, JSON.stringify(all));
   } catch {}
+}
+
+// Manual task adjustments use the same persisted history stream as the normal
+// timer so Today, the daily goal, streaks, and stats all agree.
+function legacyDayKeyFromPlanDate(dateStr) {
+  const [year, month, day] = String(dateStr || '').split('-').map(Number);
+  return (year && month && day) ? `${year}-${month}-${day}` : todayKey();
+}
+
+function saveManualWorkedTime(dateStr, seconds, name, note = '') {
+  const duration = Math.max(0, Math.round(Number(seconds) || 0));
+  if (!duration) return false;
+  const key = legacyDayKeyFromPlanDate(dateStr);
+  const [year, month, day] = key.split('-').map(Number);
+  const now = new Date();
+  const wall = key === todayKey()
+    ? now.getTime()
+    : new Date(year, month - 1, day, 12, 0, 0, 0).getTime();
+  saveCalSegment({
+    type:'manual', wall, seconds:duration,
+    name:name || 'manually added time', note
+  }, key);
+  syncSessionDayFromCalendar(key);
+  refreshTracker();
+  return true;
 }
 
 function clearCalDay() {
@@ -1083,6 +1108,17 @@ function buildCalEvents(segs) {
       }
       isRunning = true;
 
+    } else if (s.type === 'manual') {
+      const durationMs = Math.max(0, Number(s.seconds) || 0) * 1000;
+      if (durationMs > 0) {
+        const manualEnd = Number(s.wall) || Date.now();
+        events.push({
+          name:s.name || 'manually added time',
+          startWall:manualEnd-durationMs, endWall:manualEnd,
+          colorIdx:0, col:CAL_COLORS[0], live:false, manual:true
+        });
+      }
+
     } else if (s.type === 'pause') {
       // Run segment ends — store it, don't emit yet (lap not closed)
       if (runStart !== null) {
@@ -1183,27 +1219,39 @@ function timerValueAt(wall) {
   return S.mode === 'countdown' ? Math.max(0, S.t - elapsed) : S.t + elapsed;
 }
 
-// Turn a run that spans midnight into self-contained per-day start/pause pairs.
-// This also handles a sleeping tab: the next tick can split across several days.
+// Close a run at midnight. Starting a new day's timer is always a deliberate
+// user action through the Start Timer button; rollover must never start it.
 function splitActiveRunAtMidnight(at = Date.now()) {
   if (!S.run || S.calRunStartWall == null) return;
-  let runStart = S.calRunStartWall;
-  for (const boundary of midnightBoundariesBetween(runStart, at)) {
-    const finishedDay = wallDayKey(runStart);
-    saveCalSegment({type:'pause', wall:boundary}, finishedDay);
-    syncSessionDayFromCalendar(finishedDay);
-    saveCalSegment({
-      type:'start', wall:boundary, lapName:currentLapName,
-      colorSeed:currentCalColorSeed, timerAtLapStart:timerValueAt(boundary)
-    });
-    runStart = boundary;
-  }
-  S.calRunStartWall = runStart;
+  const boundary = midnightBoundariesBetween(S.calRunStartWall, at)[0];
+  if (boundary === undefined) return;
+  const finishedDay = wallDayKey(S.calRunStartWall);
+  saveCalSegment({type:'pause', wall:boundary}, finishedDay);
+  syncSessionDayFromCalendar(finishedDay);
+  S.t=0; S.ls=0; S.laps=[]; S.pend=null;
+  S.run=false; S.startedAt=null; S.sessionStartWall=null; S.calRunStartWall=null;
+  currentLapName='study block';
+  clearInterval(iv); iv=null;
+  document.getElementById('sbtn').textContent='[ start timer ]';
+  document.getElementById('lbtn').disabled=true;
+  stopCalLive(); relWL(); updClock(); pushBowlState();
+  try{
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+      date:todayStr(), t:0, savedAtWall:at, wasRunning:false,
+      mode:S.mode, ls:0, laps:[], sessionStartWall:null, wasReset:true
+    }));
+  }catch{}
+  refreshTracker();
 }
 
 // ── Bowl state sync ──────────────────────────────────────────────────────────
 const CMD_KEY = 'fishbowl_cmd';
-let lastCmdTs = 0;
+// Treat any command already in storage as handled. Otherwise reopening this
+// page can replay an old pop-out "start" command and start without a new click.
+let lastCmdTs = (()=>{
+  try{return Number(JSON.parse(localStorage.getItem(CMD_KEY)||'{}').ts)||0;}
+  catch{return 0;}
+})();
 
 function pushBowlState(){
   try{
@@ -1333,7 +1381,7 @@ function play(){
   S.calRunStartWall=playWall;
   currentCalColorSeed=Math.floor(Math.random() * 12);
   iv=setInterval(tick,250);
-  document.getElementById('sbtn').textContent='[ pause ]';
+  document.getElementById('sbtn').textContent='[ pause timer ]';
   document.getElementById('lbtn').disabled=false;
   // Record start event with current lap name
   saveCalSegment({type:'start', wall:playWall, lapName: currentLapName, colorSeed:currentCalColorSeed, timerAtLapStart: getCurrentT()});
@@ -1346,7 +1394,7 @@ function pause(at=Date.now()){
   splitActiveRunAtMidnight(pauseWall);
   S.t=timerValueAt(pauseWall); S.startedAt=null; S.run=false;
   clearInterval(iv); iv=null;
-  document.getElementById('sbtn').textContent='[ start ]';
+  document.getElementById('sbtn').textContent='[ start timer ]';
   // Keep lap button enabled while paused so user can still save a lap
   if(S.t > 0) document.getElementById('lbtn').disabled=false;
   // Record pause event
@@ -1528,7 +1576,9 @@ function calDayTotalFromSegments(dayKeyStr) {
   let total = 0;
   let runStart = null;
   for (const s of segs) {
-    if (s.type === 'start') {
+    if (s.type === 'manual') {
+      total += Math.max(0, Number(s.seconds) || 0) * 1000;
+    } else if (s.type === 'start') {
       runStart = s.wall;
     } else if ((s.type === 'pause' || s.type === 'lap' || s.type === 'reset') && runStart !== null) {
       total += s.wall - runStart;
@@ -1899,7 +1949,7 @@ document.addEventListener('keydown',e=>{
   if(document.getElementById('goal-modal').style.display!=='none'){return;} // has its own Enter/Escape listener
   if(document.body.classList.contains('stats-view')){if(e.key==='Escape')showTimer();return;}
   switch(e.key){
-    case ' ':e.preventDefault();toggleTimer();break;
+    // Starting is intentionally button-only. Space no longer changes timer state.
     case 'l':case 'L':triggerLap();break;
     case 'r':case 'R':resetTimer();break;
     case 'f':case 'F':toggleFS();break;
@@ -2860,6 +2910,7 @@ const PlanApp = (() => {
     t.timer.manual_adjustments=t.timer.manual_adjustments||[];
     t.timer.manual_adjustments.push({id:uid('adj'),seconds,at:nowISO(),note});
     await saveTask(t,'worked_time_added',{seconds,note,focused_seconds:Math.round(focusedSeconds(t))});
+    saveManualWorkedTime(t.date,seconds,`${t.current_subject} — ${t.current_topic}`,note);
     closeModal();toast(`${minsLabel(seconds/60)} added to ${t.current_subject}.`);
   }
   function openActive(id){location.hash='today';setTimeout(()=>document.querySelector(`[data-live-task="${id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),50);}

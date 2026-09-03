@@ -51,29 +51,35 @@ test('finds the exact local-midnight boundary in a four-second run', () => {
   );
 });
 
-test('closes the previous day and opens the next day while still running', () => {
+test('closes the previous day and pauses at 00:00 without opening a new run', () => {
   const start = new Date(2026, 7, 24, 23, 59, 58).getTime();
   const end = new Date(2026, 7, 25, 0, 0, 2).getTime();
   const saved = [];
   const synced = [];
-  const S = {run:true, calRunStartWall:start, startedAt:start, t:0, mode:'stopwatch'};
+  const S = {run:true, calRunStartWall:start, startedAt:start, sessionStartWall:start, t:0, ls:0, laps:[], mode:'stopwatch'};
   const api = loadRollover({
     S,
+    iv:null,
+    AUTOSAVE_KEY:'study_autosave',
     currentLapName:'study block',
     currentCalColorSeed:3,
     saveCalSegment:(segment, key) => saved.push({segment, key}),
-    syncSessionDayFromCalendar:key => synced.push(key)
+    syncSessionDayFromCalendar:key => synced.push(key),
+    clearInterval:()=>{}, stopCalLive:()=>{}, relWL:()=>{}, updClock:()=>{},
+    pushBowlState:()=>{}, refreshTracker:()=>{}, todayStr:()=> '2026-8-25',
+    localStorage:{setItem:()=>{}},
+    document:{getElementById:id => id === 'sbtn' ? {textContent:''} : {disabled:false}}
   });
 
   api.splitActiveRunAtMidnight(end);
 
-  assert.equal(saved.length, 2);
+  assert.equal(saved.length, 1);
   assert.equal(saved[0].segment.type, 'pause');
   assert.equal(saved[0].key, '2026-8-24');
-  assert.equal(saved[1].segment.type, 'start');
-  assert.equal(api.wallDayKey(saved[1].segment.wall), '2026-8-25');
   assert.deepEqual(synced, ['2026-8-24']);
-  assert.equal(S.calRunStartWall, saved[1].segment.wall);
+  assert.equal(S.calRunStartWall, null);
+  assert.equal(S.run, false);
+  assert.equal(S.t, 0);
 });
 
 test('splits every crossed day after a sleeping tab wakes up', () => {
