@@ -18,16 +18,45 @@ function functionSource(name) {
 }
 
 const sandbox = vm.createContext({Number});
-vm.runInContext(`${functionSource('manualTimeSeconds')}\nthis.manualTimeSeconds=manualTimeSeconds;`, sandbox);
+vm.runInContext(`${functionSource('manualTimeSeconds')}\n${functionSource('correctionTimeSeconds')}\n${functionSource('correctedFocusedSeconds')}\nthis.api={manualTimeSeconds,correctionTimeSeconds,correctedFocusedSeconds};`, sandbox);
+const {manualTimeSeconds,correctionTimeSeconds,correctedFocusedSeconds}=sandbox.api;
 
 test('converts manually entered hours and minutes to focused seconds', () => {
-  assert.equal(sandbox.manualTimeSeconds(1, 30), 90 * 60);
+  assert.equal(manualTimeSeconds(1, 30), 90 * 60);
 });
 
 test('rejects empty, invalid, and over-one-day adjustments', () => {
-  assert.equal(sandbox.manualTimeSeconds(0, 0), 0);
-  assert.equal(sandbox.manualTimeSeconds(0, 60), 0);
-  assert.equal(sandbox.manualTimeSeconds(24, 1), 0);
+  assert.equal(manualTimeSeconds(0, 0), 0);
+  assert.equal(manualTimeSeconds(0, 60), 0);
+  assert.equal(manualTimeSeconds(24, 1), 0);
+});
+
+test('recorded task time can be set exactly or reduced by an amount', () => {
+  assert.equal(correctionTimeSeconds(0,40), 40*60);
+  assert.equal(correctedFocusedSeconds(639*60+5,'set',40*60), 40*60);
+  assert.equal(correctedFocusedSeconds(100*60,'subtract',60*60), 40*60);
+  assert.equal(correctedFocusedSeconds(20*60,'subtract',60*60), 0);
+});
+
+test('time correction rejects invalid hour and minute inputs', () => {
+  assert.equal(correctionTimeSeconds(1,60), null);
+  assert.equal(correctionTimeSeconds(-1,30), null);
+  assert.equal(correctionTimeSeconds(1.5,0), null);
+});
+
+test('active and listed tasks expose the recorded-time correction', () => {
+  assert.match(functionSource('taskRow'), /PlanApp\.correctRecordedTime/);
+  assert.match(functionSource('activeMarkup'), /PlanApp\.correctRecordedTime/);
+  assert.match(functionSource('taskDetails'), /PlanApp\.correctRecordedTime/);
+});
+
+test('correcting a running task preserves continuity and writes an audit event', () => {
+  const confirm = functionSource('confirmRecordedTimeCorrection');
+  assert.match(confirm, /if\(wasRunning\)closeRunningSegment\(t,at\)/);
+  assert.match(confirm, /if\(wasRunning\)openSegment\(t,at\)/);
+  assert.match(confirm, /focused_time_correction/);
+  assert.match(confirm, /before_seconds:before/);
+  assert.match(confirm, /after_seconds:after/);
 });
 
 test('Today task controls expose the worked-time adjustment', () => {
