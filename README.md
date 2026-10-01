@@ -80,7 +80,7 @@ Return the completed timetable as an Excel workbook or CSV without changing the 
 
 ## Study plan workflow
 
-Open `index.html` directly or publish it with GitHub Pages. The default **Today** view imports `.xlsx`, `.xls`, and `.csv` timetables, previews detected rows, maps flexible columns, and turns confirmed rows into live calendar blocks. Plan data, task changes, timer segments, completion records, daily scores, exams, and analytics are stored in IndexedDB.
+Open `index.html` directly or publish it with GitHub Pages. The default **Today** view imports `.xlsx`, `.xls`, and `.csv` timetables, previews detected rows, maps flexible columns, and turns confirmed rows into live calendar blocks. Each import is kept as a separate calendar, so adding a new timetable preserves earlier tasks and progress; use the calendar selector on **Progress** to view one import or all calendars together. Plan data, task changes, timer segments, completion records, daily scores, exams, and analytics are stored in IndexedDB.
 
 Each imported block preserves its original subject, topic, and duration. You can freely substitute another topic within the same subject; changing the subject is a separate confirmed override. Focused time is calculated from persisted run segments, excluding pauses, and active timers recover from saved timestamps after refresh.
 
