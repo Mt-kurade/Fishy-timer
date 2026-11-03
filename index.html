@@ -2776,7 +2776,7 @@ const PlanApp = (() => {
   const GOOGLE_SCOPE='https://www.googleapis.com/auth/calendar.events';
   let db=null;
   let state={tasks:[],imports:[],dailyScores:[],exams:[],settings:[],activeTaskId:null,calendarDate:dateKey(new Date()),reviewDate:dateKey(new Date()),progressImportId:'all',importCtx:null};
-  let googleSync={token:null,expiresAt:0,client:null,busy:false,timer:null,debounce:null,status:'disconnected',message:''};
+  let googleSync={token:null,expiresAt:0,client:null,busy:false,deleting:false,timer:null,debounce:null,status:'disconnected',message:''};
 
   function dateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
   function keyDate(k){const [y,m,d]=String(k).split('-').map(Number);return new Date(y,m-1,d);}
@@ -2851,20 +2851,36 @@ const PlanApp = (() => {
     if(response.status===204)return null;
     const data=await response.json().catch(()=>({}));if(!response.ok){const error=new Error(data?.error?.message||`Google Calendar request failed (${response.status}).`);error.status=response.status;throw error;}return data;
   }
-  async function listFishyGoogleEvents(){
-    const id=encodeURIComponent(googleCalendarId()),items=[];let page='';
+  async function listFishyGoogleEvents(calendarId=googleCalendarId()){
+    const id=encodeURIComponent(calendarId),items=[];let page='';
     do{const qs=new URLSearchParams({showDeleted:'true',singleEvents:'true',maxResults:'2500',privateExtendedProperty:'fishySource=fishy-timer'});if(page)qs.set('pageToken',page);const data=await googleApi(`/calendars/${id}/events?${qs}`);items.push(...(data.items||[]));page=data.nextPageToken||'';}while(page);
     return items;
   }
   async function getLinkedGoogleEvent(t){try{return await googleApi(`/calendars/${encodeURIComponent(t.google_sync?.calendar_id||googleCalendarId())}/events/${encodeURIComponent(t.google_sync.event_id)}`);}catch(e){if(e.status===404||e.status===410)return {id:t.google_sync.event_id,status:'cancelled',updated:t.google_sync.deleted?t.google_sync.remote_updated:nowISO(),missing:true};throw e;}}
   async function flushGoogleDeletions(){
-    const pending=Array.isArray(setting('google_pending_deletes',[]))?setting('google_pending_deletes',[]):[],remaining=[];
-    for(const item of pending){try{await googleApi(`/calendars/${encodeURIComponent(item.calendar_id||googleCalendarId())}/events/${encodeURIComponent(item.event_id)}`,{method:'DELETE'});}catch(e){if(e.status!==404&&e.status!==410)remaining.push(item);}}
-    if(remaining.length!==pending.length)await setSetting('google_pending_deletes',remaining);
+    const pending=Array.isArray(setting('google_pending_deletes',[]))?setting('google_pending_deletes',[]):[];
+    if(!pending.length)return {deleted:0,remaining:0};
+    const remaining=[],byCalendar=new Map();let deleted=0;
+    for(const item of pending){const calendarId=item.calendar_id||googleCalendarId();if(!byCalendar.has(calendarId))byCalendar.set(calendarId,[]);byCalendar.get(calendarId).push(item);}
+    for(const [calendarId,items] of byCalendar){
+      let events;
+      try{events=await listFishyGoogleEvents(calendarId);}catch{remaining.push(...items);continue;}
+      for(const item of items){
+        const eventIds=new Set();
+        if(item.event_id)eventIds.add(item.event_id);
+        if(item.task_id)events.filter(e=>e.extendedProperties?.private?.fishyTaskId===item.task_id).forEach(e=>eventIds.add(e.id));
+        let failed=false;
+        for(const eventId of eventIds){try{await googleApi(`/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,{method:'DELETE'});deleted++;}catch(e){if(e.status!==404&&e.status!==410)failed=true;}}
+        if(failed)remaining.push(item);
+      }
+    }
+    await setSetting('google_pending_deletes',remaining);
+    return {deleted,remaining:remaining.length};
   }
-  async function queueGoogleDeletion(t){const eventId=t.google_sync?.event_id;if(!eventId)return;const pending=Array.isArray(setting('google_pending_deletes',[]))?[...setting('google_pending_deletes',[])]:[];if(!pending.some(x=>x.event_id===eventId)){pending.push({event_id:eventId,calendar_id:t.google_sync.calendar_id||googleCalendarId()});await setSetting('google_pending_deletes',pending);}}
+  async function queueGoogleDeletion(t){const eventId=t.google_sync?.event_id,taskId=t.id,calendarId=t.google_sync?.calendar_id||googleCalendarId(),pending=Array.isArray(setting('google_pending_deletes',[]))?[...setting('google_pending_deletes',[])]:[];const existing=pending.find(x=>(taskId&&x.task_id===taskId)||(eventId&&x.event_id===eventId));if(existing){existing.task_id=existing.task_id||taskId;existing.event_id=existing.event_id||eventId;existing.calendar_id=existing.calendar_id||calendarId;}else pending.push({task_id:taskId,event_id:eventId||null,calendar_id:calendarId});await setSetting('google_pending_deletes',pending);}
+  function waitForGoogleSyncIdle(){return new Promise((resolve,reject)=>{const started=Date.now(),check=()=>{if(!googleSync.busy)return resolve();if(Date.now()-started>60000)return reject(new Error('Google Calendar is still syncing. Please try deleting the calendar again.'));setTimeout(check,100);};check();});}
   async function syncGoogleCalendar(showToast=true){
-    if(googleSync.busy)return;if(!googleConnected()){if(showToast)toast('Connect Google Calendar first.');return;}
+    if(googleSync.busy||googleSync.deleting)return;if(!googleConnected()){if(showToast)toast('Connect Google Calendar first.');return;}
     googleSync.busy=true;googleSync.status='syncing';googleSync.message='Syncing…';if(location.hash==='#settings')renderSettings();
     try{
       await flushGoogleDeletions();const events=await listFishyGoogleEvents(),byId=new Map(events.map(e=>[e.id,e])),byTask=new Map();events.forEach(e=>{const id=e.extendedProperties?.private?.fishyTaskId;if(id&&(!byTask.has(id)||new Date(e.updated)>new Date(byTask.get(id).updated)))byTask.set(id,e);});
@@ -3057,6 +3073,11 @@ const PlanApp = (() => {
     for(const k of dates){if(state.dailyScores.some(s=>s.date===k))continue;const tasks=tasksOn(k),score=scoreDay(k,tasks);score.frozen_at=nowISO();score.snapshot=tasks.map(t=>({id:t.id,subject:t.current_subject,topic:t.current_topic,planned_minutes:plannedMinutes(t),actual_seconds:Math.round(focusedSeconds(t)),completion_percentage:completionOf(t),status:statusOf(t)}));await put('dailyScores',score);changed=true;}
     if(changed)await reload();
   }
+  async function rebuildPastScores(dates){
+    const today=dateKey(new Date());
+    for(const k of new Set(dates)){if(k>=today)continue;const tasks=tasksOn(k);if(!tasks.length){await del('dailyScores',k);continue;}const score=scoreDay(k,tasks);score.frozen_at=nowISO();score.snapshot=tasks.map(t=>({id:t.id,subject:t.current_subject,topic:t.current_topic,planned_minutes:plannedMinutes(t),actual_seconds:Math.round(focusedSeconds(t)),completion_percentage:completionOf(t),status:statusOf(t)}));await put('dailyScores',score);}
+    await reload();
+  }
   function taskRow(t,withActions=true){const st=statusOf(t),changed=t.current_topic!==t.original_topic||t.current_subject!==t.original_subject,sameDayResult=isSameDayResult(t);return `<article class="plan-task" style="--subject:${subjectColor(t.current_subject)}"><div class="plan-task-time">${safe(rangeLabel(t))}<br>${plannedMinutes(t)} min</div><i class="subject-bar"></i><div class="plan-task-main"><b>${safe(t.current_subject)}</b><div>${safe(t.current_topic)}</div><small>${changed?`Changed from: ${safe(t.original_topic)} · `:''}${Math.round(focusedSeconds(t)/60)} min focused · <span class="state ${st}">${safe(st.replaceAll('-',' '))}</span></small></div>${withActions?`<div class="plan-actions">${st===STATUS.NOT||st==='overdue'?`<button class="pbtn primary" onclick="PlanApp.startTask('${t.id}')">Start</button><button class="pbtn" onclick="PlanApp.changeTask('${t.id}')">Change task</button>`:''}${st===STATUS.RUN&&t.timer?.state==='running'?`<button class="pbtn primary" onclick="PlanApp.openActive('${t.id}')">Open timer</button>`:''}${st===STATUS.RUN&&t.timer?.state==='paused'?`<button class="pbtn primary" onclick="PlanApp.resumeTask('${t.id}')">Resume</button>`:''}${sameDayResult?`<button class="pbtn" onclick="PlanApp.editRecord('${t.id}')">Edit result</button><button class="pbtn primary" onclick="PlanApp.reopenTask('${t.id}')">Reopen</button>`:''}<button class="pbtn" onclick="PlanApp.addWorkedTime('${t.id}')">+ Add worked time</button>${focusedSeconds(t)>0?`<button class="pbtn" onclick="PlanApp.correctRecordedTime('${t.id}')">Correct time</button>`:''}<button class="pbtn" onclick="PlanApp.taskDetails('${t.id}')">Details</button></div>`:''}</article>`;}
   function activeMarkup(t){const sec=focusedSeconds(t),planned=plannedMinutes(t)*60,remaining=Math.max(0,planned-sec);return `<div class="plan-card current-card"><div class="plan-kicker">Current task</div><div class="current-grid"><div><div class="subject-label">${safe(t.current_subject)}</div><div class="task-topic">${safe(t.current_topic)}</div></div><div class="task-timer" data-live-task="${t.id}">${clockLabel(sec)} / ${clockLabel(planned)}<small>${clockLabel(remaining)} planned remaining</small></div></div><div class="plan-actions"><button class="pbtn primary" onclick="PlanApp.pauseTask('${t.id}')">Pause &amp; choose another</button><button class="pbtn" onclick="PlanApp.finishTask('${t.id}')">Finish</button><button class="pbtn" onclick="PlanApp.addWorkedTime('${t.id}')">+ Add worked time</button><button class="pbtn" onclick="PlanApp.correctRecordedTime('${t.id}')">Correct recorded time</button><button class="pbtn" onclick="PlanApp.changeTask('${t.id}')">Change remaining session</button></div></div>`;}
   function renderToday(){
@@ -3199,7 +3220,23 @@ const PlanApp = (() => {
   async function confirmReschedule(id){const t=taskById(id),k=document.getElementById('res-date').value,time=document.getElementById('res-time').value;if(!k){toast('Choose a date.');return;}const n=await cloneForward(t,k,'rescheduled');if(time){n.planned_start=time;if(n.planned_start&&plannedMinutes(n)){const [h,m]=time.split(':').map(Number),end=h*60+m+plannedMinutes(n);n.planned_end=`${String(Math.floor(end/60)%24).padStart(2,'0')}:${String(end%60).padStart(2,'0')}`;n.updated_at=nowISO();await put('tasks',n);await reload();}}closeModal();renderCurrent();queueGoogleSync();}
   async function markComplete(id){const t=taskById(id);t.completion_percentage=100;t.status=STATUS.DONE;t.actual_finish=t.actual_finish||nowISO();await saveTask(t,'marked_complete',{note:'Marked complete without adding timer time'});}
   async function skipTask(id){if(!confirm('Skip this task? It will remain visible in review and receive 0% completion.'))return;const t=taskById(id);t.completion_percentage=0;t.status=STATUS.SKIP;await saveTask(t,'skipped');}
-  async function deleteImport(id){const imp=state.imports.find(i=>i.id===id),tasks=state.tasks.filter(t=>t.import_id===id);if(!imp||!confirm(`Delete ${tasks.length} tasks imported from ${imp.filename}? Timer history inside those tasks will be removed, and linked Google Calendar events will be deleted on the next sync.`))return;for(const t of tasks){await queueGoogleDeletion(t);await del('tasks',t.id);}for(const exam of state.exams.filter(e=>e.import_id===id))await del('exams',exam.id);await del('imports',id);if(state.progressImportId===id)state.progressImportId='all';await reload();renderImport();toast(googleConnected()?'Calendar deleted. Google Calendar deletion queued.':'Calendar deleted locally. Reconnect Google Calendar to remove its linked events.');queueGoogleSync();}
+  async function deleteImport(id){
+    const imp=state.imports.find(i=>i.id===id),tasks=state.tasks.filter(t=>t.import_id===id);
+    if(!imp||!confirm(`Delete the calendar “${importName(imp)}” and its ${tasks.length} task${tasks.length===1?'':'s'} from Fishyy and Google Calendar? Recorded timer history for these tasks will also be removed.`))return;
+    googleSync.deleting=true;clearTimeout(googleSync.debounce);
+    try{
+      await waitForGoogleSyncIdle();
+      for(const t of tasks){await queueGoogleDeletion(t);await del('tasks',t.id);}
+      for(const exam of state.exams.filter(e=>e.import_id===id))await del('exams',exam.id);
+      await del('imports',id);
+      if(state.progressImportId===id)state.progressImportId='all';
+      await reload();await rebuildPastScores(tasks.map(t=>t.date));renderCurrent();
+      if(googleConnected()){const result=await flushGoogleDeletions();if(result.remaining)toast('Calendar deleted from Fishyy. Some Google events could not be removed yet and will be retried automatically.');else toast('Calendar deleted from Fishyy and Google Calendar.');}
+      else toast('Calendar deleted from Fishyy. Its Google events are queued for deletion the next time you connect.');
+    }catch(e){await reload();renderCurrent();toast(e.message||'Calendar deletion could not be completed.');}
+    finally{googleSync.deleting=false;}
+    queueGoogleSync();
+  }
   function shiftCalendar(n){const d=keyDate(state.calendarDate);d.setDate(d.getDate()+n);state.calendarDate=dateKey(d);renderCalendar();}
   function setCalendarDate(v){if(v)state.calendarDate=v;renderCalendar();}
   function openReview(k){state.reviewDate=k||dateKey(new Date());location.hash='review';renderReview();}
