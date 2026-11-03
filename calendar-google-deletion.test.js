@@ -58,3 +58,12 @@ test('connected calendar deletion flushes Google removals immediately', () => {
   assert.match(remove, /deleted from Fishyy and Google Calendar/);
 });
 
+test('tasks left behind by an already deleted calendar are cleaned on startup', () => {
+  const cleanup = functionSource('cleanupOrphanedImportedTasks');
+  assert.match(cleanup, /t\.import_id&&!importIds\.has\(t\.import_id\)/);
+  assert.match(cleanup, /queueGoogleDeletion\(t\)/);
+  assert.match(cleanup, /del\('tasks',t\.id\)/);
+  assert.match(cleanup, /rebuildPastScores/);
+  assert.match(source, /const cleaned=await cleanupOrphanedImportedTasks\(\)/);
+});
+
